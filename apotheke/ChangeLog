@@ -1,3 +1,8 @@
+2002-06-02  Jens Finke <jens@triq.net>
+
+	* src/apotheke-client-cvs.c (apotheke_client_cvs_do): Print out
+	CVS command which is executed.
+
 2002-05-31  Jens Finke <jens@triq.net>
 
 	* Makefile.am: Added gconf schema stuff.

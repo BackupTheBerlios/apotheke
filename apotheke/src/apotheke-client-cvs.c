@@ -182,6 +182,12 @@ apotheke_client_cvs_do (ApothekeClientCVS   *client,
 #ifdef CLIENT_CVS_DEBUG
 	g_print ("cvs cmd: %s\n", cvs_cmd);
 #endif
+	/* print out executed cvs command */
+	utf_txt = g_locale_to_utf8 (cvs_cmd, -1, NULL, NULL, NULL);
+	gtk_text_buffer_get_end_iter (client->priv->console, &iter);
+	gtk_text_buffer_insert (client->priv->console, &iter, utf_txt, -1);
+	gtk_text_buffer_insert (client->priv->console, &iter, "\n", -1);
+	g_free (utf_txt);
 
 	if (pipe (fd) < 0) {
 		g_warning (_("Couldn't open pipe.\n"));

@@ -1,0 +1,6 @@
+.xvpics
+*~
+Makefile
+Makefile.in
+*.xcf
+

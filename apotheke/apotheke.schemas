@@ -22,7 +22,7 @@
       <default>false</default>
       <locale name="C">
 	<short>Hide ignored files</short>
-	<long>Wether to hide the files ignored by CVS or not.</long>
+	<long>Whether or not to hide the files ignored by CVS.</long>
       </locale>
     </schema>
 
@@ -51,7 +51,7 @@
       <default>true</default>
       <locale name="C">
 	<short>Unified diff output</short>
-	<long>Wether to use unified diff format when comparing two files.</long>
+	<long>Whether to use unified diff format when comparing two files.</long>
       </locale>
     </schema>
 
@@ -63,7 +63,7 @@
       <default>true</default>
       <locale name="C">
 	<short>Recurse into subdirectories</short>
-	<long>Wether to recurse into subdirectories on diff.</long>
+	<long>Whether to recurse into subdirectories on diff.</long>
       </locale>
     </schema>
 
@@ -75,7 +75,7 @@
       <default>false</default>
       <locale name="C">
 	<short>Include added/removed files</short>
-	<long>Wether to include added/removed files in diff output.</long>
+	<long>Whether to include added/removed files in diff output.</long>
       </locale>
     </schema>
 
@@ -87,10 +87,23 @@
       <default>false</default>
       <locale name="C">
 	<short>Ignore whitespaces</short>
-	<long>Wether to ignore all whitespaces when comparing files.</long>
+	<long>Whether to ignore all whitespaces when comparing files.</long>
       </locale>
     </schema>
 
+
+    <!-- commit settings -->
+    <schema>
+      <key>/schemas/apps/apotheke/commit/recursive</key>
+      <applyto>/apps/apotheke/commit/recursive</applyto>
+      <owner>apotheke</owner>
+      <type>bool</type>
+      <default>true</default>
+      <locale name="C">
+	<short>Recurse into subdirectories</short>
+	<long>Wether to recurse into subdirectories on diff.</long>
+      </locale>
+    </schema>
 
   </schemalist>
 </gconfschemafile>

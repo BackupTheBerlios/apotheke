@@ -182,8 +182,8 @@ hide_ignored_files_state_changed_callback (BonoboUIComponent   *component,
 
 	hide_files = (g_ascii_strcasecmp (state, "1") == 0);
 
-	gconf_client_set_int (view->priv->config, APOTHEKE_CONFIG_HIDE_IGNORED,
-			      (int) hide_files, NULL);
+	gconf_client_set_bool (view->priv->config, APOTHEKE_CONFIG_HIDE_IGNORED,
+			      hide_files, NULL);
 }
 
 static void
@@ -241,7 +241,7 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 		
 	}
 	else {
-		g_warning ("Something did go wrong.\n");
+		g_warning ("Something went wrong.\n");
 	}
 
 	g_list_free (files);
@@ -326,7 +326,7 @@ merge_bonobo_ui_callback (BonoboControl *control,
 							"apotheke-view-ui.xml",
 							"apotheke-view");
 
-		hide_ignored = (gconf_client_get_int (view->priv->config, APOTHEKE_CONFIG_HIDE_IGNORED, NULL) == 1);
+		hide_ignored = gconf_client_get_bool (view->priv->config, APOTHEKE_CONFIG_HIDE_IGNORED, NULL);
 		bonobo_ui_component_set_prop (ui_component,
 					      "/commands/Hide Ignored Files",
 					      "state",
@@ -834,7 +834,7 @@ apotheke_view_load_uri (ApothekeView *view, const char *location)
 	priv->ad = apotheke_directory_new (location);
 	apotheke_directory_create_file_list (priv->ad);
 
-	hide_ignored = (gconf_client_get_int (priv->config, APOTHEKE_CONFIG_HIDE_IGNORED, NULL) == 1);
+	hide_ignored = gconf_client_get_bool (priv->config, APOTHEKE_CONFIG_HIDE_IGNORED, NULL);
 	if (priv->ui_component) {
 		bonobo_ui_component_set_prop (priv->ui_component,
 					      "/commands/Hide Ignored Files",

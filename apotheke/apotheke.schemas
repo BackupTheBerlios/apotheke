@@ -28,6 +28,22 @@
 
     <!-- diff settings -->
     <schema>
+      <key>/schemas/apps/apotheke/diff/operation</key>
+      <applyto>/apps/apotheke/diff/operation</applyto>
+      <owner>apotheke</owner>
+      <type>int</type>
+      <default>0</default>
+      <locale name="C">
+	<short>Determines which file versions to compare.</short>
+	<long>Determines which file versions cvs diff compares. Valid values are 0, 1 and 2.
+              0 = local version with remote version,
+              1 = local version with a specified tag/branch/date,
+	      2 = files with different tag/branch/date.
+        </long>
+      </locale>
+    </schema>
+
+    <schema>
       <key>/schemas/apps/apotheke/diff/unified_diff</key>
       <applyto>/apps/apotheke/diff/unified_diff</applyto>
       <owner>apotheke</owner>

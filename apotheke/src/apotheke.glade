@@ -118,7 +118,7 @@
 		  </child>
 
 		  <child>
-		    <widget class="GtkHBox" id="hbox3">
+		    <widget class="GtkHBox" id="local_tag_children">
 		      <property name="border_width">4</property>
 		      <property name="visible">True</property>
 		      <property name="homogeneous">False</property>
@@ -188,7 +188,7 @@
 		  </child>
 
 		  <child>
-		    <widget class="GtkTable" id="table2">
+		    <widget class="GtkTable" id="tag_tag_children">
 		      <property name="visible">True</property>
 		      <property name="n_rows">2</property>
 		      <property name="n_columns">3</property>

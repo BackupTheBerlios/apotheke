@@ -78,8 +78,7 @@ apotheke_client_cvs_new (GtkTextBuffer *console)
 	return client;
 }
 
-#define option2string(value, o1, o2) \
-      value ? o1 : o2                   
+#define option2string(value, o1, o2) value ? o1 : o2                   
 
 
 static gchar*
@@ -122,6 +121,28 @@ assemble_diff_cmd (ApothekeDirectory *dir,
 		   GList *files)
 {
 	gchar *cmd;
+	gchar *revision;
+
+	switch (options->operation) {
+	case APOTHEKE_DIFF_COMPARE_LOCAL_REMOTE:
+		revision = NULL;
+		break;
+
+	case APOTHEKE_DIFF_COMPARE_LOCAL_TAG:
+		revision = g_strconcat (option2string (options->first_is_date, "-D", "-r"),
+					" ", options->first_tag, NULL);
+		break;
+	case APOTHEKE_DIFF_COMPARE_TAG_TAG:
+		revision = g_strconcat (option2string (options->first_is_date, "-D", "-r"),
+					" ", options->first_tag, " ",
+					option2string (options->second_is_date, "-D", "-r"),
+					" ", options->second_tag, 
+					NULL);
+		break;
+	default:
+		revision = NULL;
+	}
+
 
 	cmd = g_strconcat ("cvs -f diff ", 
 			   option2string (options->recursive, "-R", "-l"), 
@@ -131,9 +152,14 @@ assemble_diff_cmd (ApothekeDirectory *dir,
 			   option2string (options->unified_diff, "-u", ""),
 			   " ",
 			   option2string (options->whitespaces, "-b", ""),
+			   " ",
+			   revision,
 			   NULL); 
 
 	cmd = add_cmd_files (cmd, files);
+
+	if (revision != NULL)
+		g_free (revision);
 
 	return cmd;
 }

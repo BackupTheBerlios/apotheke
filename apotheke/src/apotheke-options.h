@@ -34,8 +34,20 @@ struct _ApothekeOptionsStatus {
 	gboolean verbose;
 };
 
+typedef enum {
+	APOTHEKE_DIFF_COMPARE_LOCAL_REMOTE,
+	APOTHEKE_DIFF_COMPARE_LOCAL_TAG,
+	APOTHEKE_DIFF_COMPARE_TAG_TAG
+} ApothekeDiffCompareType;
+
 struct _ApothekeOptionsDiff {
 	ApothekeOptions     options;
+
+	ApothekeDiffCompareType operation;
+	gchar *first_tag;
+	gboolean first_is_date;
+	gchar *second_tag;
+	gboolean second_is_date;
 
 	gboolean recursive;
 	gboolean include_add_removed_files;

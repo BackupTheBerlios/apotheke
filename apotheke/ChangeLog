@@ -1,3 +1,18 @@
+2002-06-16  Jens Finke <jens@triq.net>
+
+	* apotheke.schemas: Added apps/apotheke/diff/operation key.
+
+	* src/apotheke-client-cvs.c (assemble_diff_cmd): Consider diff operation.
+
+	* src/apotheke-cvs-dialogs.c (on_radiobutton_toggled),
+	(init_radio_button): New functions.
+	(apotheke_cvs_dialog_diff_show): Setup different diff operations
+	and read users input.
+
+	* src/apotheke-options.h: Added options for different compare types.
+
+	* src/apotheke.glade: Renamed some widgets.
+	
 2002-06-10  Jens Finke <jens@triq.net>
 
 	* apotheke-cvs-dialogs.[ch],

@@ -364,11 +364,11 @@ static gchar*
 get_last_changelog_entry (ApothekeView *view)
 {
 	FILE  *file;
-	gchar *file_uri;
-	gchar *file_path;
-	gchar *log_message = g_strdup ("");
-	gchar *tmp;
-	gchar *buffer;
+	char *file_uri;
+	char *file_path;
+	char *log_message = g_strdup ("");
+	char *tmp;
+	char *buffer;
 	int   sec_count = 0;
 	int   line_count = 0;
 
@@ -377,17 +377,38 @@ get_last_changelog_entry (ApothekeView *view)
 	
 	file_path = gnome_vfs_get_local_path_from_uri (file_uri);
 	
+	g_print ("ChangeLog path: %s\n", file_path);
+
 	file = fopen (file_path, "r");
 	buffer = g_new0 (gchar, 512);
 
-	while (fgets (buffer, 512, file) && sec_count < 2 && line_count < 100) {
-		if (g_ascii_isspace (buffer[0])) {
-			sec_count++;
-		} 
-		if (sec_count < 2) {
-			tmp = g_strconcat (log_message, buffer, NULL);
+	while (sec_count < 2 && fgets (buffer, 512, file) && line_count < 100) {
+		char *string;
+		char *it;
+		int i;
+		gboolean section_begin = TRUE;
+		
+		if (g_utf8_validate (buffer, -1, NULL)) {
+			string = buffer;
+		}
+		else {
+			string = g_locale_to_utf8 (buffer, -1, NULL, NULL, NULL);
+		}
+
+		/* see if we have a date definition at the beginning of this
+		 * line (like '2002-12-30').
+		 */
+		for (it = string, i = 0; i < 10 && section_begin; it = g_utf8_next_char (it), i++) {
+			if (i != 4 && i != 7) {
+				section_begin = g_unichar_isdigit (g_utf8_get_char (it));
+			}
+		}
+		if (section_begin) sec_count++;
+
+		if (sec_count == 1) {
+			tmp = g_strconcat (log_message, string, NULL);
 			g_free (log_message);
-			tmp = log_message;
+			log_message = tmp;
 		}
 		line_count++;
 	}
@@ -396,11 +417,7 @@ get_last_changelog_entry (ApothekeView *view)
 	g_free (buffer);
 	g_free (file_uri);
 	g_free (file_path);
-	if (sec_count < 2) {
-		g_free (log_message);
-		log_message = NULL;
-	}
-	
+
 	return log_message;
 }
 
@@ -420,10 +437,7 @@ verb_CVS_commit_cb (BonoboUIComponent *uic,
 	APOTHEKE_OPTIONS (options)->type = APOTHEKE_CMD_COMMIT;
 	APOTHEKE_OPTIONS (options)->compression = 0;
 
-	/* FIXME: The message field should by initialized with the 
-	 *        last entry in the ChangeLog file if it exists. 
-	 */
-	options->message = NULL; /* get_last_changelog_entry (view); */
+	options->message = get_last_changelog_entry (view);
 
 	if (apotheke_cvs_dialog_commit_show (view->priv->config, options)) {
 		execute_cvs_command (view, APOTHEKE_CMD_COMMIT, APOTHEKE_OPTIONS (options));

@@ -1,3 +1,9 @@
+2002-12-31  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-view.c (get_last_changelog_entry): Reworked.
+	(verb_CVS_commit_cb): Try to init the commit message with the last
+	ChangeLog entry found.
+
 2002-12-30  Jens Finke  <jens@triq.net>
 
 	* src/apotheke-directory.[ch]

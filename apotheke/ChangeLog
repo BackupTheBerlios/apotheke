@@ -1,5 +1,9 @@
 2002-05-13  Jens Finke <jens@triq.net>
 
+	* AUTHORS: New file.
+
+2002-05-13  Jens Finke <jens@triq.net>
+
 	My weekend work: Support for CVS diff command, initial status
 	indication through icons, initial context menu work, click on
 	splitter hides console, diff output highlighting.

@@ -1,6 +1,6 @@
 <oaf_info>
 
-<oaf_server iid="OAFIID:apotheke_view_factory:2002-03-09-23-02-15" type="exe" location="apotheke-view">
+<oaf_server iid="OAFIID:apotheke_view_factory:2002-03-09-23-02-15" type="exe" location="@LIBEXECDIR@/apotheke-view">
 	<oaf_attribute name="repo_ids" type="stringv">
 		<item value="IDL:GNOME/ObjectFactory:1.0"/>
 	</oaf_attribute>

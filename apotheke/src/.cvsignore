@@ -11,5 +11,6 @@ Makefile
 Makefile.in
 apotheke-view
 Apotheke_View.server
+Apotheke_View.server.in
 apotheke-view-ui.xml
 

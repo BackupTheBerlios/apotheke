@@ -5,7 +5,7 @@ INCLUDES =                         \
 	-DGNOMELOCALEDIR=\""$(datadir)/locale\"" \
 	$(APOTHEKE_CFLAGS)
 
-bin_PROGRAMS = apotheke-view
+libexec_PROGRAMS = apotheke-view
 
 apotheke_view_SOURCES =        \
 	apotheke-main.c        \
@@ -30,11 +30,13 @@ apotheke_view_LDADD = $(APOTHEKE_LIBS) $(FAM_LIBS)
 serverdir = $(libdir)/bonobo/servers
 server_in_files = Apotheke_View.server.in
 server_DATA = $(server_in_files:.server.in=.server)
+$(server_in_files): $(server_in_files).in
+	sed -e "s|\@LIBEXECDIR\@|$(libexecdir)|" $< > $@
+
+@INTLTOOL_SERVER_RULE@
 
 gladedir   = $(pkgdatadir)/glade
 glade_DATA = apotheke.glade
-
-@INTLTOOL_SERVER_RULE@
 
 uidir = $(datadir)/gnome-2.0/ui
 ui_in_files = apotheke-view-ui.xml.in
@@ -43,3 +45,5 @@ ui_DATA = $(ui_in_files:.xml.in=.xml)
 @INTLTOOL_XML_RULE@
 
 EXTRA_DIST = $(ui_in_files) $(server_in_files) $(glade_DATA)
+
+CLEANFILES = $(ui_DATA) $(server_DATA) $(server_in_files)

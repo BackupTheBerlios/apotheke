@@ -1,3 +1,13 @@
+2002-11-14  Ross Burton  <ross@burtonini.com>
+
+	* src/Makefile.am: Install the binary in ${libexecdir}, instead of
+	${bindir}; and replace the path in the .server file. Also add some
+	more clean rules.
+
+	* configure.in: Fix the typo with GNOME_COMPILE_WARNINGS, so that
+	it actually works. Use the GConf macros instead of doing it all by
+	hand. Also turn on AM_MAINTAINER_MODE.
+
 2002-11-07  Jens Finke <jens@triq.net>
 
 	* apotheke.spec.in: Added spec file, created by Christian Schaller

@@ -27,9 +27,9 @@ apotheke_view_SOURCES =        \
 apotheke_view_LDADD = $(APOTHEKE_LIBS) $(FAM_LIBS)
 
 serverdir = $(libdir)/bonobo/servers
-server_in_files = Apotheke_View.server.in
-server_DATA = $(server_in_files:.server.in=.server)
-$(server_in_files): $(server_in_files).in
+server_in_files = Apotheke_View.server.in.in
+server_DATA = $(server_in_files:.server.in.in=.server)
+$(server_in_files:.server.in.in=.server.in): $(server_in_files)
 	sed -e "s|\@LIBEXECDIR\@|$(libexecdir)|" $< > $@
 
 @INTLTOOL_SERVER_RULE@
@@ -45,4 +45,4 @@ ui_DATA = $(ui_in_files:.xml.in=.xml)
 
 EXTRA_DIST = $(ui_in_files) $(server_in_files) $(glade_DATA)
 
-CLEANFILES = $(ui_DATA) $(server_DATA) $(server_in_files)
+CLEANFILES = $(ui_DATA) $(server_DATA)

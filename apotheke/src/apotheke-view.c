@@ -55,8 +55,10 @@ struct _ApothekeViewPrivate {
 	gboolean     hide_ignored_files;
 
 	GutterInfo   gutter;
-
-	GData        *icon_cache;
+	
+	GdkPixbuf    *icons[FILE_STATUS_LAST];
+	GdkPixbuf    *dir_icon;
+	GData        *icon_cache;  /* FIXME: what's this for??? */
 };
 
 /*
@@ -136,12 +138,46 @@ static const gchar* titles[] = {
 	N_("Date")
 };
 
+void get_row_icon (GtkTreeViewColumn *tree_column,
+		   GtkCellRenderer *cell,
+		   GtkTreeModel *tree_model,
+		   GtkTreeIter *iter,
+		   gpointer data)
+{
+	gboolean is_directory;
+	ApothekeFileStatus status;
+	ApothekeView *view;
+	ApothekeViewPrivate *priv;
+	GdkPixbuf *pixbuf;
+
+	view = APOTHEKE_VIEW (data);
+	priv = view->priv;
+	
+	gtk_tree_model_get (GTK_TREE_MODEL (tree_model), iter,
+			    AD_COL_DIRECTORY, &is_directory,
+			    AD_COL_STATUS, &status,
+			    -1);
+
+	if (is_directory) {
+		pixbuf = priv->dir_icon;
+	}
+	else {
+		pixbuf = priv->icons[status];
+	}
+
+	g_object_set (G_OBJECT (cell), 
+		      "pixbuf", pixbuf,
+		      NULL);
+}
 
 static void
-set_up_tree_view (GtkTreeView *tree_view)
+set_up_tree_view (ApothekeView *view)
 {
+	GtkTreeView *tree_view;
 	GtkCellRenderer *cell;
         GtkTreeViewColumn *column;
+
+	tree_view = GTK_TREE_VIEW (view->priv->tree_view);
 
 	/* filename column */
 	cell = gtk_cell_renderer_pixbuf_new ();
@@ -152,10 +188,10 @@ set_up_tree_view (GtkTreeView *tree_view)
 	gtk_tree_view_column_set_title (column, titles[VIEW_COL_NAME]);
 	
 	gtk_tree_view_column_pack_start (column, cell, FALSE);
-	gtk_tree_view_column_set_attributes (column, cell,
-					     "pixbuf", AD_COL_FILEICON,
-					     NULL);
-	
+	gtk_tree_view_column_set_cell_data_func (column, cell, 
+						 get_row_icon, 
+						 view, NULL);
+
 	cell = gtk_cell_renderer_text_new ();
 	gtk_tree_view_column_pack_start (column, cell, TRUE);
 	gtk_tree_view_column_set_attributes (column, cell,
@@ -767,7 +803,7 @@ construct_ui (ApothekeView *view)
 
 	/* set up tree view */
         priv->tree_view = gtk_tree_view_new ();
-	set_up_tree_view (GTK_TREE_VIEW (priv->tree_view));
+	set_up_tree_view (view);
 	gtk_tree_selection_set_mode (gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->tree_view)), 
 				     GTK_SELECTION_MULTIPLE);
 	gtk_tree_view_set_rules_hint (GTK_TREE_VIEW (priv->tree_view), TRUE);
@@ -810,6 +846,65 @@ construct_ui (ApothekeView *view)
 
 	gtk_container_add (GTK_CONTAINER (priv->event_box), vpane);
 	gtk_widget_show_all (vpane);
+}
+
+#define LIST_VIEW_ICON_HEIGHT           24
+
+static void
+load_icons (ApothekeView *view)
+{
+	ApothekeViewPrivate *priv;
+	char *filename;
+	int i;
+	GdkPixbuf *pixbuf;
+	const char *files[] = {
+		NULL,                    /* FILE_STATUS_NOT_IN_CVS, */
+		NULL,                    /* FILE_STATUS_IGNORE, */
+		NULL,                    /* FILE_STATUS_CVS_FILE, */
+		"cvs-file.png",          /* FILE_STATUS_UP_TO_DATE, */
+		NULL,                    /* FILE_STATUS_NEEDS_PATCH, */
+		NULL,                    /* FILE_STATUS_ADDED, */
+		"cvs-file-modified.png", /* FILE_STATUS_MODIFIED, */
+		NULL,                    /* FILE_STATUS_REMOVED, */
+		NULL,                    /* FILE_STATUS_NEEDS_CHECKOUT, */
+		NULL,                    /* FILE_STATUS_NEEDS_MERGE, */
+		"cvs-file-missing.png",  /* FILE_STATUS_MISSING, */ 
+		NULL,                    /* FILE_STATUS_CONFLICT, */ 
+		"cvs-directory.png"      /* FILE_STATUS_LAST is interpreted as icon for a directory */
+	};
+
+	priv = view->priv;
+	
+	for (i = 0; i <= FILE_STATUS_LAST; i++) {
+		if (files[i] == 0) {
+			priv->icons[i] = NULL;
+		}
+		else {
+			filename = g_build_filename (DATADIR, "pixmaps", "apotheke", files[i], NULL);
+			pixbuf = gdk_pixbuf_new_from_file (filename, NULL);
+			if (pixbuf != NULL) {
+				gint width, height;
+				gdouble factor;
+				GdkPixbuf *tmp;
+				
+				width = gdk_pixbuf_get_width (pixbuf);
+				height = gdk_pixbuf_get_height (pixbuf);
+				factor = (double) LIST_VIEW_ICON_HEIGHT / (double) height;
+				tmp = gdk_pixbuf_scale_simple (pixbuf, width * factor,
+							       LIST_VIEW_ICON_HEIGHT,
+							       GDK_INTERP_BILINEAR);
+				g_object_unref (pixbuf);
+				pixbuf = tmp;
+			}
+			if (i == FILE_STATUS_LAST) {
+				priv->dir_icon = pixbuf;
+			}
+			else {
+				priv->icons[i] = pixbuf;
+			}
+			g_free (filename);
+		}
+	}
 }
 
 static void
@@ -880,6 +975,7 @@ apotheke_view_instance_init (ApothekeView *view)
 			  view);
 
 	construct_ui (view);
+	load_icons (view);
 
 	priv->client = apotheke_client_cvs_new (priv->console);
 }
@@ -888,6 +984,7 @@ static void
 apotheke_view_destroy (BonoboObject *object)
 {
 	ApothekeViewPrivate *priv;
+	int i;
 
 	priv = ((ApothekeView*) object)->priv;
 
@@ -897,6 +994,18 @@ apotheke_view_destroy (BonoboObject *object)
 	g_object_unref (G_OBJECT (priv->ad));
 
 	g_object_unref (G_OBJECT (priv->client));
+
+	for (i = 0; i < FILE_STATUS_LAST; i++) {
+	        if (priv->icons[i] != NULL) {
+			g_object_unref (priv->icons[i]);
+			priv->icons[i] = NULL;
+		}
+	}
+	
+	if (priv->dir_icon != NULL) {
+		g_object_unref (priv->dir_icon);
+		priv->dir_icon = NULL;
+	}
 
 	g_datalist_clear (&priv->icon_cache);
 	priv->icon_cache = NULL;

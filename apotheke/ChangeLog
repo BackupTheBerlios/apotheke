@@ -1,5 +1,20 @@
 2003-01-05  Jens Finke  <jens@triq.net>
 
+	* src/apotheke-directory.c (get_file_icon): Removed.
+
+	* src/apotheke-directory.h: Removed AD_COL_FILEICON. This is now
+	completely handled by the view. Added FILE_STATUS_LAST dummy
+	entry.
+
+	* src/apotheke-view.c (load_icons): New function.
+	(apotheke_view_instance_init): Load file icons.
+	(apotheke_view_destroy): Free icons.
+	(get_row_icon): New function.
+	(set_up_tree_view): Call get_row_icon to determine the file icon
+	for an entry.
+
+2003-01-05  Jens Finke  <jens@triq.net>
+
 	* src/apotheke-directory.c (apotheke_sort_func_name),
 	(apotheke_sort_func_string),
 	(apotheke_sort_func_name): New functions. Rows get sorted by name

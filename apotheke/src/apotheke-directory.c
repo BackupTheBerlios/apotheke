@@ -42,9 +42,6 @@ static gboolean is_file_ignored (gchar *filename, GList *pattern_list);
 static void get_status_text (ApothekeFileStatus status, 
 			     gboolean is_directory, 
 			     gchar **status_str);
-static GdkPixbuf* get_file_icon (ApothekeFileStatus status, 
-				 gboolean is_directory);
-
 static void apotheke_directory_finalize (GObject *object);
 static void apotheke_directory_dispose (GObject *object);
 static gint apotheke_sort_func_name (GtkTreeModel *model,
@@ -99,7 +96,6 @@ apotheke_directory_construct (ApothekeDirectory *ad, const gchar *uri)
 	GnomeVFSFileInfo *info;
 
 	GType column_types [AD_NUM_COLUMNS] = {
-		GDK_TYPE_PIXBUF, /* AD_COL_FILEICON */
 		G_TYPE_BOOLEAN,  /* AD_COL_DIRECTORY */
 		G_TYPE_STRING,   /* AD_COL_FILENAME */ 
 		G_TYPE_STRING,   /* AD_COL_VERSION */
@@ -342,7 +338,6 @@ change_entry_status (ApothekeDirectory *ad, GtkTreeIter *iter, ApothekeFileStatu
 	get_status_text (status, is_directory, &cvs_status);
 
 	gtk_list_store_set (GTK_LIST_STORE (ad), iter,
-			    AD_COL_FILEICON, get_file_icon (status, is_directory),
 			    AD_COL_STATUS, (int) status,
 			    AD_COL_STATUS_STR, cvs_status,
 			    -1);
@@ -658,7 +653,6 @@ create_file_list (ApothekeDirectory *ad, GList **cvs_entries,
 
 		gtk_list_store_append (GTK_LIST_STORE (ad), &iter);
 		gtk_list_store_set (GTK_LIST_STORE (ad), &iter,
-				    AD_COL_FILEICON, get_file_icon (status, is_directory), 
 				    AD_COL_DIRECTORY, is_directory,
 				    AD_COL_FILENAME, filename,
 				    AD_COL_STATUS, (int) status,
@@ -782,7 +776,6 @@ apply_cvs_status (ApothekeDirectory *ad, GtkTreeIter *iter, time_t mtime, GList 
 	/* update model */
 	get_status_text (status, is_directory, &cvs_status);
 	gtk_list_store_set (GTK_LIST_STORE (ad), iter,
-			    AD_COL_FILEICON, get_file_icon (status, is_directory),
 			    AD_COL_STATUS, (int) status,
 			    AD_COL_VERSION, cvs_revision,
 			    AD_COL_STATUS_STR, cvs_status,
@@ -928,46 +921,6 @@ get_status_text (ApothekeFileStatus status, gboolean is_directory, gchar **statu
 			break;
 		}
 	}
-}
-
-static GdkPixbuf*
-get_file_icon (ApothekeFileStatus status, gboolean is_directory)
-{
-	GdkPixbuf *pixbuf = NULL;
-	GdkPixbuf *pixbuf_icon = NULL;
-	int width, height;
-	double factor;
-
-	if (is_directory)
-		pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-directory.png", NULL);
-	else {
-		switch (status) {
-		case FILE_STATUS_UP_TO_DATE:
-			pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-file.png", NULL);
-			break;
-		case FILE_STATUS_MODIFIED:
-			pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-file-modified.png", NULL);
-			break;
-		case FILE_STATUS_MISSING:
-			pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-file-missing.png", NULL);
-			break;
-		default:
-			pixbuf = NULL;
-		}
-	}
-     
-	if (pixbuf == NULL) return NULL;
-
-	width = gdk_pixbuf_get_width (pixbuf);
-	height = gdk_pixbuf_get_height (pixbuf);
-	factor = (double) LIST_VIEW_ICON_HEIGHT / (double) height;
-	pixbuf_icon = gdk_pixbuf_scale_simple (pixbuf, width * factor,
-					       LIST_VIEW_ICON_HEIGHT,
-					       GDK_INTERP_BILINEAR);
-
-	g_object_unref (pixbuf);
-
-	return pixbuf_icon;
 }
 
 void

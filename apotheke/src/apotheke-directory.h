@@ -14,7 +14,6 @@ typedef struct _ApothekeDirectoryClass ApothekeDirectoryClass;
 typedef struct _ApothekeDirectoryPrivate ApothekeDirectoryPrivate;
 
 enum {
-	AD_COL_FILEICON,
 	AD_COL_DIRECTORY,
 	AD_COL_FILENAME,
 	AD_COL_VERSION,
@@ -39,7 +38,8 @@ typedef enum {
 	FILE_STATUS_NEEDS_CHECKOUT,
 	FILE_STATUS_NEEDS_MERGE,
 	FILE_STATUS_MISSING,
-	FILE_STATUS_CONFLICT
+	FILE_STATUS_CONFLICT,
+	FILE_STATUS_LAST
 } ApothekeFileStatus;
 
 struct _ApothekeDirectory {

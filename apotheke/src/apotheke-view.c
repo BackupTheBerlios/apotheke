@@ -914,7 +914,7 @@ construct_ui (ApothekeView *view)
 	/* text console */
 	tag_table = setup_tag_table ();
 	priv->console = gtk_text_buffer_new (tag_table);
-	text = "Apotheke version " VERSION ", (C) 2002 Jens Finke <jens@triq.net>\n";
+	text = "Apotheke version " VERSION ", \xC2\xA9 2002 Jens Finke <jens@triq.net>\n";
 	gtk_text_buffer_set_text (priv->console, text, -1);
 	priv->text_view = gtk_text_view_new_with_buffer (priv->console);
 	scroll_window = gtk_scrolled_window_new (NULL, NULL);

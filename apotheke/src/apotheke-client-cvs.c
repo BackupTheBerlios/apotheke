@@ -329,6 +329,10 @@ apotheke_client_cvs_do (ApothekeClientCVS   *client,
 					&iter,
 					utf_txt, 
 					-1);
+		gtk_text_buffer_insert (client->priv->console,
+					&iter,
+					"\n\n", /* line break */
+					-1);
 		g_free (utf_txt);
 		g_free (buffer);
 	}

@@ -1,6 +1,7 @@
 <gconfschemafile>
   <schemalist>
 
+    <!-- global view settings -->
     <schema>
       <key>/schemas/apps/apotheke/view/console_pos</key>
       <applyto>/apps/apotheke/view/console_pos</applyto>
@@ -17,13 +18,63 @@
       <key>/schemas/apps/apotheke/view/hide_ignored</key>
       <applyto>/apps/apotheke/view/hide_ignored</applyto>
       <owner>apotheke</owner>
-      <type>int</type>
-      <default>0</default>
+      <type>bool</type>
+      <default>false</default>
       <locale name="C">
 	<short>Hide ignored files</short>
 	<long>Wether to hide the files ignored by CVS or not.</long>
       </locale>
     </schema>
+
+    <!-- diff settings -->
+    <schema>
+      <key>/schemas/apps/apotheke/diff/unified_diff</key>
+      <applyto>/apps/apotheke/diff/unified_diff</applyto>
+      <owner>apotheke</owner>
+      <type>bool</type>
+      <default>true</default>
+      <locale name="C">
+	<short>Unified diff output</short>
+	<long>Wether to use unified diff format when comparing two files.</long>
+      </locale>
+    </schema>
+
+    <schema>
+      <key>/schemas/apps/apotheke/diff/recursive</key>
+      <applyto>/apps/apotheke/diff/recursive</applyto>
+      <owner>apotheke</owner>
+      <type>bool</type>
+      <default>true</default>
+      <locale name="C">
+	<short>Recurse into subdirectories</short>
+	<long>Wether to recurse into subdirectories on diff.</long>
+      </locale>
+    </schema>
+
+    <schema>
+      <key>/schemas/apps/apotheke/diff/include_addremoved</key>
+      <applyto>/apps/apotheke/diff/include_addremoved</applyto>
+      <owner>apotheke</owner>
+      <type>bool</type>
+      <default>false</default>
+      <locale name="C">
+	<short>Include added/removed files</short>
+	<long>Wether to include added/removed files in diff output.</long>
+      </locale>
+    </schema>
+
+    <schema>
+      <key>/schemas/apps/apotheke/diff/ignore_whitespaces</key>
+      <applyto>/apps/apotheke/diff/ignore_whitespaces</applyto>
+      <owner>apotheke</owner>
+      <type>bool</type>
+      <default>false</default>
+      <locale name="C">
+	<short>Ignore whitespaces</short>
+	<long>Wether to ignore all whitespaces when comparing files.</long>
+      </locale>
+    </schema>
+
 
   </schemalist>
 </gconfschemafile>

@@ -5,6 +5,8 @@ typedef struct _ApothekeOptions       ApothekeOptions;
 typedef struct _ApothekeOptionsStatus ApothekeOptionsStatus;
 typedef struct _ApothekeOptionsDiff   ApothekeOptionsDiff;
 
+#define APOTHEKE_OPTIONS(o) (((ApothekeOptions*)o))
+
 typedef enum {
 	APOTHEKE_CMD_ADD,
 	APOTHEKE_CMD_CHECKOUT,
@@ -26,20 +28,19 @@ struct _ApothekeOptions {
 };
 
 struct _ApothekeOptionsStatus {
-	ApothekeCommandType  type;
-	int                  compression;
+	ApothekeOptions      options;
 	
 	gboolean recursive;
 	gboolean verbose;
 };
 
 struct _ApothekeOptionsDiff {
-	ApothekeCommandType  type;
-	int                  compression;
+	ApothekeOptions     options;
 
 	gboolean recursive;
 	gboolean include_add_removed_files;
 	gboolean unified_diff;
+	gboolean whitespaces;
 };
 
 #endif /* __APOTHEKE_OPTIONS_H__ */

@@ -129,6 +129,8 @@ assemble_diff_cmd (ApothekeDirectory *dir,
 			   option2string (options->include_add_removed_files, "-N", ""),
 			   " ", 
 			   option2string (options->unified_diff, "-u", ""),
+			   " ",
+			   option2string (options->whitespaces, "-b", ""),
 			   NULL); 
 
 	cmd = add_cmd_files (cmd, files);

@@ -1,6 +1,7 @@
 
 INCLUDES =                         \
 	-DDATADIR=\""$(datadir)"\" \
+	-DGLADE_DIR=\"$(gladedir)\" \
 	-DGNOMELOCALEDIR=\""$(datadir)/locale\"" \
 	$(APOTHEKE_CFLAGS)
 
@@ -19,13 +20,19 @@ apotheke_view_SOURCES =        \
 	apotheke-highlight-buffer.h \
 	apotheke-cvs-entries.c \
 	apotheke-cvs-entries.h \
-	apotheke-options.h
+	apotheke-cvs-dialogs.h \
+	apotheke-cvs-dialogs.c \
+	apotheke-options.h     \
+	apotheke-glade.h
 
 apotheke_view_LDADD = $(APOTHEKE_LIBS) $(FAM_LIBS)
 
 serverdir = $(libdir)/bonobo/servers
 server_in_files = Apotheke_View.server.in
 server_DATA = $(server_in_files:.server.in=.server)
+
+gladedir   = $(pkgdatadir)/glade
+glade_DATA = apotheke.glade
 
 @INTLTOOL_SERVER_RULE@
 

@@ -25,6 +25,7 @@
 #include "apotheke-directory.h"
 #include "apotheke-client-cvs.h"
 #include "apotheke-highlight-buffer.h"
+#include "apotheke-cvs-dialogs.h"
 
 #define GUTTER_HIDDEN_THRESHOLD 4
 
@@ -259,8 +260,8 @@ verb_CVS_status_cb (BonoboUIComponent *uic,
 	view = APOTHEKE_VIEW (user_data);
 
 	options = g_new0 (ApothekeOptionsStatus, 1);
-	options->type = APOTHEKE_CMD_STATUS;
-	options->compression = 0;
+	APOTHEKE_OPTIONS (options)->type = APOTHEKE_CMD_STATUS;
+	APOTHEKE_OPTIONS (options)->compression = 0;
 
 	options->recursive = FALSE;
 	options->verbose = TRUE;
@@ -289,14 +290,14 @@ verb_CVS_diff_cb (BonoboUIComponent *uic,
 	view = APOTHEKE_VIEW (user_data);
 
 	options = g_new0 (ApothekeOptionsDiff, 1);
-	options->type = APOTHEKE_CMD_DIFF;
-	options->compression = 0;
+	APOTHEKE_OPTIONS (options)->type = APOTHEKE_CMD_DIFF;
+	APOTHEKE_OPTIONS (options)->compression = 0;
 
-	options->recursive = FALSE;
-	options->include_add_removed_files = FALSE;
-	options->unified_diff = TRUE;
+	if (apotheke_cvs_dialog_diff_show (view->priv->config, options)) {
+		execute_cvs_command (view, APOTHEKE_CMD_DIFF, (ApothekeOptions*) options);
+	}
 
-	execute_cvs_command (view, APOTHEKE_CMD_DIFF, (ApothekeOptions*) options);
+	g_free (options);
 }
 
 static BonoboUIVerb apotheke_verbs[] = {
@@ -633,6 +634,19 @@ setup_tag_table (void)
 	return table;
 }
 
+static gboolean
+call_paned_set_position (gpointer data)
+{
+	ApothekeViewPrivate *priv;
+
+	priv = APOTHEKE_VIEW (data)->priv;
+	
+	gtk_paned_set_position (GTK_PANED (priv->gutter.paned), 
+				gconf_client_get_int (priv->config, APOTHEKE_CONFIG_CONSOLE_POS, NULL));
+
+	return FALSE;
+}
+
 static void
 construct_ui (ApothekeView *view)
 {
@@ -694,8 +708,8 @@ construct_ui (ApothekeView *view)
 	gtk_container_add (GTK_CONTAINER (priv->event_box), vpane);
 	gtk_widget_show_all (vpane);
 
-	gtk_paned_set_position (GTK_PANED (priv->gutter.paned), 
-				gconf_client_get_int (priv->config, APOTHEKE_CONFIG_CONSOLE_POS, NULL));
+	g_idle_add_full (G_PRIORITY_LOW, call_paned_set_position, view, NULL);
+
 	priv->gutter.saved_position = gconf_client_get_int (priv->config, 
 							    APOTHEKE_CONFIG_CONSOLE_POS, NULL);
 }
@@ -735,7 +749,9 @@ apotheke_view_instance_init (ApothekeView *view)
 	g_datalist_init (&priv->icon_cache);
 
 	/* init gconf */
-	g_assert (gconf_is_initialized ());
+	if (!gconf_is_initialized ())
+		gconf_init (0, NULL,  NULL);	
+
 	priv->config = gconf_client_get_default ();
 	gconf_client_add_dir (priv->config,
 			      APOTHEKE_CONFIG_DIR,

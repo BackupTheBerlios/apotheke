@@ -1,3 +1,34 @@
+2002-06-10  Jens Finke <jens@triq.net>
+
+	* apotheke-cvs-dialogs.[ch],
+	* apotheke.glade,
+	* apotheke-glade.h: New files.
+
+	* apotheke.schemas: Added keys for diff options, changed most
+	settings to bool type.
+
+	* configure.in: Added check for libglade.
+
+	* src/Makefile.am: Added glade stuff and new files.
+
+	* src/apotheke-client-cvs.c (assemble_diff_cmd): Handle -b option.
+
+	* src/apotheke-main.c: Don't initialize gconf here.
+
+	* src/apotheke-options.h: Use ApothekeOptions as "base struct" for
+	the other ones.
+
+	* src/apotheke-view-ui.xml.in: Display only the most important
+	commands for now.
+
+	* src/apotheke (verb_CVS_status_cb), (verb_CVS_diff_cb): Use new
+	APOTHEKE_OPTIONS macro.
+	(verb_CVS_diff_cb): Show options dialog.
+	(call_paned_set_position): New function.
+	(construct_ui): Add idle function for placing the gutter (doesn't
+	work either).
+	(apotheke_view_instance_init): Initialize gconf if neccessary.
+	
 2002-06-02  Jens Finke <jens@triq.net>
 
 	* src/apotheke-view.c (execute_cvs_command): Scroll to end of

@@ -19,14 +19,11 @@
 		<placeholder name="Edit Items Placeholder">
 			<menuitem name="CVS Commandline" verb=""/>
 			<separator/>
+			<menuitem name="CVS Diff" verb=""/>
 			<menuitem name="CVS Status" verb=""/>
+	                <separator/>
 			<menuitem name="CVS Commit" verb=""/>
 			<menuitem name="CVS Update" verb=""/>
-			<menuitem name="CVS Checkout" verb=""/>
-			<menuitem name="CVS Diff" verb=""/>
-                        <menuitem name="CVS Tag" verb=""/>
-                        <menuitem name="CVS Rtag" verb=""/>
-                        <menuitem name="CVS Add" verb=""/>
 		</placeholder>
         </submenu>
 

@@ -1,3 +1,10 @@
+2003-01-05  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-directory.c (apotheke_sort_func_name),
+	(apotheke_sort_func_string),
+	(apotheke_sort_func_name): New functions. Rows get sorted by name
+	as a backup case, when eg. the status is the same.
+
 2002-12-31  Jens Finke  <jens@triq.net>
 
 	* src/apotheke-view.c (get_last_changelog_entry): Reworked.
@@ -92,6 +99,10 @@
 
 	* Makefile.am: Added spec file to EXTRA_DIST.
 
+2002-11-02  Jens Finke <jens@triq.net>
+
+	Released version 0.2.
+	
 2002-11-01  Jens Finke <jens@triq.net>
 
 	Finished commit and update dialogs. Some minor polishing and

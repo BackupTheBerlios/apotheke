@@ -47,10 +47,19 @@ static GdkPixbuf* get_file_icon (ApothekeFileStatus status,
 
 static void apotheke_directory_finalize (GObject *object);
 static void apotheke_directory_dispose (GObject *object);
-static gint apotheke_sort_func (GtkTreeModel *model,
-				GtkTreeIter *a,
-				GtkTreeIter *b,
-				gpointer user_data);
+static gint apotheke_sort_func_name (GtkTreeModel *model,
+				     GtkTreeIter *a,
+				     GtkTreeIter *b,
+				     gpointer user_data);
+static gint apotheke_sort_func_string (GtkTreeModel *model,
+				       GtkTreeIter *a,
+				       GtkTreeIter *b,
+				       gpointer user_data);
+static gint apotheke_sort_func_date (GtkTreeModel *model,
+				     GtkTreeIter *a,
+				     GtkTreeIter *b,
+				     gpointer user_data);
+
 
 GNOME_CLASS_BOILERPLATE (ApothekeDirectory, apotheke_directory,
 			 GtkListStore, GTK_TYPE_LIST_STORE)
@@ -121,7 +130,28 @@ apotheke_directory_construct (ApothekeDirectory *ad, const gchar *uri)
 
 	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
 					 AD_COL_FILENAME, 
-					 apotheke_sort_func, NULL, NULL);
+					 apotheke_sort_func_name, NULL, NULL);
+	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
+					 AD_COL_VERSION, 
+					 apotheke_sort_func_string,
+					 GINT_TO_POINTER (AD_COL_VERSION), NULL);
+	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
+					 AD_COL_STATUS_STR, 
+					 apotheke_sort_func_string,
+					 GINT_TO_POINTER (AD_COL_STATUS_STR), NULL);
+	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
+					 AD_COL_ATTRIBUTES, 
+					 apotheke_sort_func_string,
+					 GINT_TO_POINTER (AD_COL_ATTRIBUTES), NULL);
+	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
+					 AD_COL_TAG, 
+					 apotheke_sort_func_string,
+					 GINT_TO_POINTER (AD_COL_TAG), NULL);
+	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
+					 AD_COL_DATE, 
+					 apotheke_sort_func_date,
+					 NULL, NULL);
+
 
 	gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (ad),
 					      AD_COL_FILENAME, GTK_SORT_ASCENDING);
@@ -174,10 +204,10 @@ apotheke_directory_finalize (GObject *object)
 
 
 static gint 
-apotheke_sort_func (GtkTreeModel *model,
-		    GtkTreeIter *a,
-		    GtkTreeIter *b,
-		    gpointer user_data)
+apotheke_sort_func_name (GtkTreeModel *model,
+			 GtkTreeIter *a,
+			 GtkTreeIter *b,
+			 gpointer user_data)
 {
 	gboolean a_is_directory;
 	gboolean b_is_directory;
@@ -201,6 +231,102 @@ apotheke_sort_func (GtkTreeModel *model,
 	}
 	else {
 		return 1;
+	}
+}
+
+static gint 
+apotheke_sort_func_string (GtkTreeModel *model,
+			   GtkTreeIter *a,
+			   GtkTreeIter *b,
+			   gpointer user_data)
+{
+	gboolean a_is_directory;
+	gboolean b_is_directory;
+	char *a_name;
+	char *b_name;
+	char *a_string;
+	char *b_string;
+	int str_column = GPOINTER_TO_INT (user_data);
+	int compare;
+
+	gtk_tree_model_get (model, a, 
+			    AD_COL_FILENAME, &a_name, 
+			    AD_COL_DIRECTORY, &a_is_directory,
+			    str_column, &a_string,
+			    -1);
+	gtk_tree_model_get (model, b, 
+			    AD_COL_FILENAME, &b_name, 
+			    AD_COL_DIRECTORY, &b_is_directory,
+			    str_column, &b_string,
+			    -1);
+
+	if (a_string == NULL && b_string == NULL) {
+		compare = 0;
+	}
+	else if (a_string == NULL) {
+		return -1;
+	}
+	else if (b_string == NULL) {
+		return 1;
+	}
+	else {
+		compare = g_utf8_collate (a_string, b_string);
+	}
+	
+	if (compare == 0) {
+		if (a_is_directory == b_is_directory) {
+			return g_utf8_collate (a_name, b_name);
+		}
+		else if (a_is_directory) {
+			return -1;
+		}
+		else {
+			return 1;
+		}
+	}
+	else {
+		return compare;
+	}
+}
+
+static gint 
+apotheke_sort_func_date (GtkTreeModel *model,
+			 GtkTreeIter *a,
+			 GtkTreeIter *b,
+			 gpointer user_data)
+{
+	gboolean a_is_directory;
+	gboolean b_is_directory;
+	char *a_name;
+	char *b_name;
+	int a_mtime;
+	int b_mtime;
+	int compare;
+
+	gtk_tree_model_get (model, a, 
+			    AD_COL_FILENAME, &a_name, 
+			    AD_COL_DIRECTORY, &a_is_directory,
+			    AD_COL_MTIME, &a_mtime,
+			    -1);
+	gtk_tree_model_get (model, b, 
+			    AD_COL_FILENAME, &b_name, 
+			    AD_COL_DIRECTORY, &b_is_directory,
+			    AD_COL_MTIME, &b_mtime,
+			    -1);
+	
+	if (a_mtime == b_mtime) {
+		if (a_is_directory == b_is_directory) {
+			return g_utf8_collate (a_name, b_name);
+		}
+		else if (a_is_directory) {
+			return -1;
+		}
+		else {
+			return 1;
+		}
+	}
+	else {
+		return (a_mtime - b_mtime);
 	}
 }
 

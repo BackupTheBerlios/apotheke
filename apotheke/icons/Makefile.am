@@ -6,3 +6,5 @@ pixmap_DATA = \
 	cvs-file-missing.png \
 	cvs-file-modified.png \
 	cvs-directory.png
+
+EXTRA_DIST = $(pixmap_DATA)

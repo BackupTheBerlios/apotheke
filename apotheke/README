@@ -1,0 +1,78 @@
+  
+                      Apotheke CVS View
+                      =================
+
+  0. Introduction
+  ---------------
+
+Apotheke is _not_ a standalone program. It is designed as a 3rd party view (a
+kind of plugin) for the Gnome 2.0 file manager Nautilus[1], so this is an
+inherent requirement. Apotheke provides an alternative directory view for CVS
+managed directories within Nautilus. You have direct access to CVS commands
+from the Nautilus menu and can browse the CVS status for each file visually.
+
+In it's current state, Apotheke is not a fully working CVS environment. But you
+can manage and work with already existing CVS directories. The option to
+checkout or create new repositories will be added in the future eventually.
+
+
+  1. Requirements
+  ---------------
+
+As already stated above you need the Nautilus file manager installed, which
+requries a fairly complete installation of the Gnome2 development platform[2].
+Apotheke itself depends only on the following packages:
+
+ o gtk2
+ o gnome-vfs
+ o libnautilus
+ o libgnome
+ o gconf
+ o libglade
+ o fam (optional)
+
+The optional fam library should provide automatic file modification feedback
+(but it doesn't yet ;).
+
+
+  2. Installation
+  ---------------
+
+Compile Apotheke and install it into the same prefix as the rest of your Gnome2
+desktop. Now start Nautilus and go to a CVS directory you want to
+browse. Select "View as other ..." from the drop-down box in the toolbar, which
+pops up a new dialog. If everything goes well there should be a "View as CVS"
+entry in the presented list now. Select it and press Ok.
+
+
+  3. Further Information
+  ----------------------
+
+The official Apotheke homepage is located at 
+   
+   http://apotheke.berlios.de. 
+
+There you can always find the latest releases and instructions how to access
+the bleeding edge sourcecode directly from CVS.
+
+
+  4. Related Links
+  ----------------
+
+There exists also some other (and partly more complete) CVS gui frontends:
+
+      WinCVS    (Windows)
+      LinCVS
+      GtkCVS  
+      Pharmacy 
+
+
+
+
+  Nov. 2002,
+                      Jens Finke <jens@triq.net>
+
+
+--- 
+[1]
+[2] http://www.gnome.org/start/2.0

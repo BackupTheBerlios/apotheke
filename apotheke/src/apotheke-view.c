@@ -17,7 +17,10 @@
 #include <gtk/gtkvpaned.h>
 #include <gtk/gtktextbuffer.h>
 #include <gtk/gtktextview.h>
+#include <libgnomevfs/gnome-vfs-utils.h>
 #include <libgnomevfs/gnome-vfs-mime-utils.h>
+#include <libgnomevfs/gnome-vfs-ops.h>
+#include <libgnomevfs/gnome-vfs-file-info.h>
 #include <libgnome/gnome-i18n.h>
 #include <gconf/gconf-client.h>
 
@@ -67,7 +70,6 @@ struct _ApothekeViewPrivate {
 #define ID_HIDE_IGNORED_FILES           "Hide Ignored Files"
 
 #define APOTHEKE_CONFIG_DIR              "/apps/apotheke"
-#define APOTHEKE_CONFIG_CONSOLE_POS      "/apps/apotheke/view/console_pos"
 #define APOTHEKE_CONFIG_HIDE_IGNORED     "/apps/apotheke/view/hide_ignored"
 
 static void apotheke_view_class_init (ApothekeViewClass *klass);
@@ -79,9 +81,6 @@ static void apotheke_view_load_location_callback (NautilusView *nautilus_view,
 						  const char *location,
 						  ApothekeView *view);
 static void apotheke_view_load_uri (ApothekeView *view, const char *location);
-static gboolean console_is_hidden (ApothekeView *view);
-static void show_console (ApothekeView *view);
-static void hide_console (ApothekeView *view);
 
 BONOBO_CLASS_BOILERPLATE (ApothekeView, apotheke_view, 
 			  NautilusView, NAUTILUS_TYPE_VIEW)
@@ -183,7 +182,7 @@ hide_ignored_files_state_changed_callback (BonoboUIComponent   *component,
 	hide_files = (g_ascii_strcasecmp (state, "1") == 0);
 
 	gconf_client_set_bool (view->priv->config, APOTHEKE_CONFIG_HIDE_IGNORED,
-			      hide_files, NULL);
+			       hide_files, NULL);
 }
 
 static void
@@ -208,9 +207,6 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 	GtkTextMark *mark;
 	GtkTextIter iter;
 
-	if (console_is_hidden (view))
-		show_console (view);
-
 	/* collect files to process */
 	files = NULL;
 	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (view->priv->tree_view));
@@ -223,6 +219,8 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 	mark = gtk_text_buffer_create_mark (view->priv->console, NULL,
 					    &iter, TRUE);
 
+	nautilus_view_report_load_underway (NAUTILUS_VIEW (view));
+
 	/* execute command */
 	if (apotheke_client_cvs_do (view->priv->client,
 				    view->priv->ad,
@@ -230,6 +228,8 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 				    options, 
 				    files)) 
 	{
+		nautilus_view_report_load_complete (NAUTILUS_VIEW (view));
+
 		/* highlight buffer if desired */
 		gtk_text_buffer_get_iter_at_mark (view->priv->console, 
 						  &iter, mark);
@@ -241,8 +241,10 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 		
 	}
 	else {
-		g_warning ("Something went wrong.\n");
+		nautilus_view_report_load_failed (NAUTILUS_VIEW (view));
+		g_warning ("Something did go wrong.\n");
 	}
+
 
 	g_list_free (files);
 }
@@ -285,24 +287,167 @@ verb_CVS_diff_cb (BonoboUIComponent *uic,
 	ApothekeView *view;
 	ApothekeOptionsDiff *options;
 
-	g_print ("CVS DIFF. do it\n");
-
 	view = APOTHEKE_VIEW (user_data);
 
 	options = g_new0 (ApothekeOptionsDiff, 1);
 	APOTHEKE_OPTIONS (options)->type = APOTHEKE_CMD_DIFF;
 	APOTHEKE_OPTIONS (options)->compression = 0;
+	options->first_tag = NULL;
+	options->second_tag = NULL;
 
 	if (apotheke_cvs_dialog_diff_show (view->priv->config, options)) {
-		execute_cvs_command (view, APOTHEKE_CMD_DIFF, (ApothekeOptions*) options);
+		execute_cvs_command (view, APOTHEKE_CMD_DIFF, APOTHEKE_OPTIONS (options));
 	}
 
+	if (options->first_tag != NULL) g_free (options->first_tag);
+	if (options->second_tag != NULL) g_free (options->second_tag);
+	g_free (options);
+}
+
+static gboolean
+is_file_valid (gchar *uri)
+{
+	GnomeVFSResult result;
+	GnomeVFSFileInfo *info;
+	gboolean is_valid = FALSE;
+
+	info = gnome_vfs_file_info_new ();
+	result = gnome_vfs_get_file_info (uri, info, GNOME_VFS_FILE_INFO_DEFAULT);
+	if (result == GNOME_VFS_OK)
+	{
+		is_valid = TRUE;
+	}
+
+	gnome_vfs_file_info_unref (info);
+
+	return is_valid;
+}
+
+static gchar*
+find_changelog_file (ApothekeView *view)
+{
+	ApothekeDirectory *ad;
+	gchar *file_uri;
+
+	ad = view->priv->ad;
+
+	file_uri = g_build_filename (apotheke_directory_get_uri (ad), "ChangeLog", NULL);
+	if (is_file_valid (file_uri)) return file_uri;
+
+	g_free (file_uri);
+	file_uri = g_build_filename (apotheke_directory_get_uri (ad), "..", "ChangeLog", NULL);
+	if (is_file_valid (file_uri)) return file_uri;
+
+	g_free (file_uri);
+	return NULL;
+}
+
+static gchar*
+get_last_changelog_entry (ApothekeView *view)
+{
+	FILE  *file;
+	gchar *file_uri;
+	gchar *file_path;
+	gchar *log_message = g_strdup ("");
+	gchar *tmp;
+	gchar *buffer;
+	int   sec_count = 0;
+	int   line_count = 0;
+
+	file_uri = find_changelog_file (view);
+	if (file_uri == NULL) return NULL;
+	
+	file_path = gnome_vfs_get_local_path_from_uri (file_uri);
+	
+	file = fopen (file_path, "r");
+	buffer = g_new0 (gchar, 512);
+
+	while (fgets (buffer, 512, file) && sec_count < 2 && line_count < 100) {
+		if (g_ascii_isspace (buffer[0])) {
+			sec_count++;
+		} 
+		if (sec_count < 2) {
+			tmp = g_strconcat (log_message, buffer, NULL);
+			g_free (log_message);
+			tmp = log_message;
+		}
+		line_count++;
+	}
+
+	fclose (file);
+	g_free (buffer);
+	g_free (file_uri);
+	g_free (file_path);
+	if (sec_count < 2) {
+		g_free (log_message);
+		log_message = NULL;
+	}
+	
+	return log_message;
+}
+
+static void
+verb_CVS_commit_cb (BonoboUIComponent *uic, 
+		    gpointer user_data,
+		    const char *cname)
+{
+	ApothekeView *view;
+	ApothekeOptionsCommit *options;
+
+	g_print ("calling cvs commit cb.\n");
+
+	view = APOTHEKE_VIEW (user_data);
+
+	options = g_new0 (ApothekeOptionsCommit, 1);
+	APOTHEKE_OPTIONS (options)->type = APOTHEKE_CMD_COMMIT;
+	APOTHEKE_OPTIONS (options)->compression = 0;
+
+	/* FIXME: The message field should by initialized with the 
+	 *        last entry in the ChangeLog file if it exists. 
+	 */
+	options->message = NULL; /* get_last_changelog_entry (view); */
+
+	if (apotheke_cvs_dialog_commit_show (view->priv->config, options)) {
+		execute_cvs_command (view, APOTHEKE_CMD_COMMIT, APOTHEKE_OPTIONS (options));
+	}
+
+	if (options->message != NULL) g_free (options->message);
+	g_free (options);
+}
+
+static void
+verb_CVS_update_cb (BonoboUIComponent *uic, 
+		    gpointer user_data,
+		    const char *cname)
+{
+	ApothekeView *view;
+	ApothekeOptionsUpdate *options;
+
+	g_print ("CVS UPDATE. do it\n");
+
+	view = APOTHEKE_VIEW (user_data);
+
+	options = g_new0 (ApothekeOptionsUpdate, 1);
+	APOTHEKE_OPTIONS (options)->type = APOTHEKE_CMD_UPDATE;
+	APOTHEKE_OPTIONS (options)->compression = 0;
+
+	options->sticky_tag = NULL;
+
+	if (apotheke_cvs_dialog_update_show (view->priv->config, options)) {
+		execute_cvs_command (view, APOTHEKE_CMD_UPDATE, APOTHEKE_OPTIONS (options));
+	}
+
+	if (options->sticky_tag != NULL) {
+		g_free (options->sticky_tag);
+	}
 	g_free (options);
 }
 
 static BonoboUIVerb apotheke_verbs[] = {
 	BONOBO_UI_VERB ("CVS Status", verb_CVS_status_cb),
 	BONOBO_UI_VERB ("CVS Diff", verb_CVS_diff_cb),
+	BONOBO_UI_VERB ("CVS Commit", verb_CVS_commit_cb),
+	BONOBO_UI_VERB ("CVS Update", verb_CVS_update_cb),
 	BONOBO_UI_VERB_END
 };
 
@@ -397,6 +542,18 @@ handle_context_revert_state (GtkWidget *widget, gpointer data)
 }
 
 static void
+handle_context_cvs_commit (GtkWidget *widget, gpointer data)
+{
+	verb_CVS_commit_cb (NULL, data, NULL);
+}
+
+static void
+handle_context_cvs_update (GtkWidget *widget, gpointer data)
+{
+	verb_CVS_update_cb (NULL, data, NULL);
+}
+
+static void
 add_popup_item (ApothekeView *view, GtkWidget **menu, gchar *txt, gpointer callback)
 {
 	GtkWidget *label;
@@ -464,10 +621,15 @@ handle_right_click (ApothekeView *view, GdkEventButton *event)
 	g_object_ref (G_OBJECT (menu));
 	gtk_object_sink (GTK_OBJECT (menu));
 	
-	add_popup_item (view, &menu, _("CVS Status"), handle_context_cvs_status);
 	add_popup_item (view, &menu, _("CVS Diff"), handle_context_cvs_diff);
+	add_popup_item (view, &menu, _("CVS Status"), handle_context_cvs_status);
+	add_popup_item (view, &menu, "-", NULL);
+	add_popup_item (view, &menu, _("CVS Commit"), handle_context_cvs_commit);
+	add_popup_item (view, &menu, _("CVS Update"), handle_context_cvs_update);
+#if 0
 	add_popup_item (view, &menu, "-", NULL);
 	add_popup_item (view, &menu, _("Revert To Repository State"), handle_context_revert_state);
+#endif
 	
 	/* display menu */
 	gtk_widget_show_all (menu);
@@ -534,80 +696,6 @@ handle_button_press_event (GtkWidget *widget, GdkEventButton *event,  gpointer d
 	return FALSE;
 }
 
-static gboolean
-console_is_hidden (ApothekeView *view)
-{
-	GtkWidget *paned;
-	int height;
-
-	paned = view->priv->gutter.paned;
-	height = paned->allocation.height;
-
-	return ((height - gtk_paned_get_position (GTK_PANED (paned))) < 10);
-}
-
-static void
-show_console (ApothekeView *view)
-{
-	GutterInfo *info;
-
-	info = &view->priv->gutter;
-	gtk_paned_set_position (GTK_PANED (info->paned), info->saved_position);
-}
-
-static void
-hide_console (ApothekeView *view)
-{
-	GutterInfo *info;
-	int height;
-
-	info = &view->priv->gutter;
-	height = info->paned->allocation.height;
-
-	info->saved_position = gtk_paned_get_position (GTK_PANED (info->paned));
-	gtk_paned_set_position (GTK_PANED (info->paned), height);
-}
-
-static gint
-gutter_button_press_callback (GtkWidget *widget, GdkEventButton *event,  gpointer data) 
-{
-	ApothekeView *view;
-	
-	view = APOTHEKE_VIEW (data);
-
-	view->priv->gutter.press_y = event->y;
-	view->priv->gutter.press_time = event->time;
-	
-	return FALSE;
-}
-
-static gint
-gutter_button_release_callback (GtkWidget *widget, GdkEventButton *event,  gpointer data) 
-{
-	ApothekeView *view;
-	int diff_y;
-	int diff_time;
-	
-	view = APOTHEKE_VIEW (data);
-	
-	diff_y = abs (event->y - view->priv->gutter.press_y);
-	diff_time = event->time - view->priv->gutter.press_time;
-	
-	if (diff_y < 1 && diff_time < 200 ) {
-		if (console_is_hidden (view)) {
-			show_console (view);
-		}
-		else {
-			hide_console (view);
-		}
-	}
-	
-	gconf_client_set_int (view->priv->config, APOTHEKE_CONFIG_CONSOLE_POS,
-			      gtk_paned_get_position (GTK_PANED (view->priv->gutter.paned)), NULL);
-
-	return FALSE;
-}
-
 static GtkTextTagTable*
 setup_tag_table (void)
 {
@@ -632,19 +720,6 @@ setup_tag_table (void)
 	gtk_text_tag_table_add (table, tag);
 	
 	return table;
-}
-
-static gboolean
-call_paned_set_position (gpointer data)
-{
-	ApothekeViewPrivate *priv;
-
-	priv = APOTHEKE_VIEW (data)->priv;
-	
-	gtk_paned_set_position (GTK_PANED (priv->gutter.paned), 
-				gconf_client_get_int (priv->config, APOTHEKE_CONFIG_CONSOLE_POS, NULL));
-
-	return FALSE;
 }
 
 static void
@@ -684,10 +759,6 @@ construct_ui (ApothekeView *view)
 	/* vpane */
 	vpane = gtk_vpaned_new ();
 	priv->gutter.paned = vpane;
-	g_signal_connect (G_OBJECT (vpane), "button-press-event",
-			  G_CALLBACK (gutter_button_press_callback), view);
-	g_signal_connect (G_OBJECT (vpane), "button-release-event",
-			  G_CALLBACK (gutter_button_release_callback), view);
 	gtk_paned_pack1 (GTK_PANED (vpane), scroll_window, TRUE, TRUE);
 	
 	/* text console */
@@ -707,11 +778,6 @@ construct_ui (ApothekeView *view)
 
 	gtk_container_add (GTK_CONTAINER (priv->event_box), vpane);
 	gtk_widget_show_all (vpane);
-
-	g_idle_add_full (G_PRIORITY_LOW, call_paned_set_position, view, NULL);
-
-	priv->gutter.saved_position = gconf_client_get_int (priv->config, 
-							    APOTHEKE_CONFIG_CONSOLE_POS, NULL);
 }
 
 static void

@@ -42,4 +42,4 @@ ui_DATA = $(ui_in_files:.xml.in=.xml)
 
 @INTLTOOL_XML_RULE@
 
-EXTRA_DIST = $(ui_in_files) $(server_in_files)
+EXTRA_DIST = $(ui_in_files) $(server_in_files) $(glade_DATA)

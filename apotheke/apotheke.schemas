@@ -3,18 +3,6 @@
 
     <!-- global view settings -->
     <schema>
-      <key>/schemas/apps/apotheke/view/console_pos</key>
-      <applyto>/apps/apotheke/view/console_pos</applyto>
-      <owner>apotheke</owner>
-      <type>int</type>
-      <default>200</default>
-      <locale name="C">
-	<short>Output console position</short>
-	<long>The position of the output console within the apotheke window.</long>
-      </locale>
-    </schema>
-
-    <schema>
       <key>/schemas/apps/apotheke/view/hide_ignored</key>
       <applyto>/apps/apotheke/view/hide_ignored</applyto>
       <owner>apotheke</owner>
@@ -91,7 +79,6 @@
       </locale>
     </schema>
 
-
     <!-- commit settings -->
     <schema>
       <key>/schemas/apps/apotheke/commit/recursive</key>
@@ -102,6 +89,50 @@
       <locale name="C">
 	<short>Recurse into subdirectories</short>
 	<long>Wether to recurse into subdirectories on diff.</long>
+      </locale>
+    </schema>
+
+    <!-- update settings -->
+    <schema>
+      <key>/schemas/apps/apotheke/update/sticky_options</key>
+      <applyto>/apps/apotheke/update/sticky_options</applyto>
+      <owner>apotheke</owner>
+      <type>int</type>
+      <default>0</default>
+      <locale name="C">
+	<short>Determines which file revision update retrieves.</short>
+	<long>Determines which file revision update retrieves. Valid values are 0, 1, 2 and 3.
+              0 = Don't change sticky option for file.
+              1 = Resets the file revision to the latest one in the HEAD branch and
+                  removes any sticky options.
+	      2 = Retrieve a certain date.
+	      3 = Retrieve a certain tag/branch/revision.
+        </long>
+      </locale>
+    </schema>
+
+    <schema>
+      <key>/schemas/apps/apotheke/update/recursive</key>
+      <applyto>/apps/apotheke/update/recursive</applyto>
+      <owner>apotheke</owner>
+      <type>bool</type>
+      <default>true</default>
+      <locale name="C">
+	<short>Recurse into subdirectories</short>
+	<long>Wether to recurse into subdirectories on update.</long>
+      </locale>
+    </schema>
+
+    <schema>
+      <key>/schemas/apps/apotheke/update/create_dirs</key>
+      <applyto>/apps/apotheke/update/create_dirs</applyto>
+      <owner>apotheke</owner>
+      <type>bool</type>
+      <default>true</default>
+      <locale name="C">
+	<short>Create directories that exist in remote repository</short>
+	<long>Wether to create directories that exsit in the remote 
+              repository but not in your local copy.</long>
       </locale>
     </schema>
 

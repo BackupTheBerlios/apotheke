@@ -1,4 +1,4 @@
-SUBDIRS = src po icons
+SUBDIRS = src icons po
 
 EXTRA_DIST =  \
 	$(schema_DATA) \

@@ -2,13 +2,12 @@
 <commands>
         <cmd name="CVS Add" _label="CVS Add"/>
         <cmd name="CVS Checkout" _label="CVS Checkout"/>
-        <cmd name="CVS Commit" _label="CVS Commit" 
-	     pixtype="file" pixname="apotheke/cvs-commit-16.png"/>
+        <cmd name="CVS Commit" _label="CVS Commit"/>
         <cmd name="CVS Diff" _label="CVS Diff"/>
 	<cmd name="CVS Remove" _label="CVS Remove"/>
         <cmd name="CVS Rtag" _label="CVS Rtag"/>
         <cmd name="CVS Status" _label="CVS Status"/>
-        <cmd name="CVS Tag" _label="CVS Tag"/>
+        <cmd name="CVS Tag" _label="CVS Tag"/> 
         <cmd name="CVS Update" _label="CVS Update"/>
 	<cmd name="CVS Commandline" _label="CVS Commandline"/>
         <cmd name="Hide Ignored Files" _label="Hide Ignored Files"/>

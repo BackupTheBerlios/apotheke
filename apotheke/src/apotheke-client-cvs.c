@@ -164,6 +164,62 @@ assemble_diff_cmd (ApothekeDirectory *dir,
 	return cmd;
 }
 
+static gchar*
+assemble_commit_cmd (ApothekeDirectory *dir, 
+		     ApothekeOptionsCommit *options, 
+		     GList *files)
+{
+	gchar *cmd;
+
+	cmd = g_strconcat ("cvs -f commit ",
+			   option2string (options->recursive, "-R", "-l"),
+			   " -m \"", options->message, "\"",
+			   NULL); 
+
+	cmd = add_cmd_files (cmd, files);
+
+	return cmd;
+}
+
+static gchar*
+assemble_update_cmd (ApothekeDirectory *dir, 
+		     ApothekeOptionsUpdate *options, 
+		     GList *files)
+{
+	gchar *cmd;
+	gchar *sticky_char;
+
+	switch (options->sticky_options) {
+	case APOTHEKE_UPDATE_STICKY_DONT_CHANGE:
+		sticky_char = NULL;
+		break;
+	case APOTHEKE_UPDATE_STICKY_RESET:
+		sticky_char = g_strdup ("-A ");
+		break;
+	case APOTHEKE_UPDATE_STICKY_DATE:
+		sticky_char = g_strconcat ("-D ", options->sticky_tag, NULL);
+		break;
+	case APOTHEKE_UPDATE_STICKY_TAG:
+		sticky_char = g_strconcat ("-r ", options->sticky_tag, NULL);
+		break;
+	}
+
+	cmd = g_strconcat ("cvs -f update ",
+			   option2string (options->recursive,   "-R", "-l"), " ",
+			   option2string (options->create_dirs, "-d", ""), " ",
+			   sticky_char,
+			   NULL);
+	
+	
+	cmd = add_cmd_files (cmd, files);
+
+	if (sticky_char != NULL) {
+		g_free (sticky_char);
+	}
+
+	return cmd;
+}
+
 gboolean 
 apotheke_client_cvs_do (ApothekeClientCVS   *client, 
 			ApothekeDirectory   *dir,
@@ -201,6 +257,17 @@ apotheke_client_cvs_do (ApothekeClientCVS   *client,
 					     files);
 		break;
 
+	case APOTHEKE_CMD_COMMIT:
+		g_print ("commit command\n");
+		cvs_cmd = assemble_commit_cmd (dir, (ApothekeOptionsCommit*) options,
+					       files);
+		break;
+
+	case APOTHEKE_CMD_UPDATE:
+		g_print ("update command\n");
+		cvs_cmd = assemble_update_cmd (dir, (ApothekeOptionsUpdate*) options,
+					       files);		
+		break;
 	default:
 		cvs_cmd = NULL;
 	};
@@ -257,7 +324,12 @@ apotheke_client_cvs_do (ApothekeClientCVS   *client,
 			while (gtk_events_pending ()) 
 				gtk_main_iteration ();
 		}
-		
+		utf_txt = g_locale_to_utf8 (_("*** command end ***"), -1, NULL, NULL, NULL);
+		gtk_text_buffer_insert (client->priv->console,
+					&iter,
+					utf_txt, 
+					-1);
+		g_free (utf_txt);
 		g_free (buffer);
 	}
 	else {

@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: 0.1\n"
-"POT-Creation-Date: 2002-03-21 09:03+0100\n"
+"POT-Creation-Date: 2002-11-01 19:45+0100\n"
 "PO-Revision-Date: 2002-03-21 11:00+0100\n"
 "Last-Translator: Jens Finke <jens@triq.net>\n"
 "Language-Team: German <gnome-de@gnome.org>\n"
@@ -13,115 +13,155 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/apotheke-view.c:94
-msgid "Flag"
-msgstr "Flagge"
-
-#: src/apotheke-view.c:96
+#: src/apotheke-view.c:121
 msgid "Name"
 msgstr "Name"
 
-#: src/apotheke-view.c:97
+#: src/apotheke-view.c:122
 msgid "Revision"
 msgstr "Revision"
 
-#: src/apotheke-view.c:98
+#: src/apotheke-view.c:123
 msgid "Status"
 msgstr "Status"
 
-#: src/apotheke-view.c:99
+#: src/apotheke-view.c:124
 msgid "Option"
 msgstr "Option"
 
-#: src/apotheke-view.c:100
+#: src/apotheke-view.c:125
 msgid "Tag"
 msgstr "Tag"
 
-#: src/apotheke-view.c:101
+#: src/apotheke-view.c:126
 msgid "Date"
 msgstr "Datum"
 
-#: src/apotheke-directory.c:99
+#: src/apotheke-view-ui.xml.in.h:5 src/apotheke-view.c:624
+msgid "CVS Diff"
+msgstr ""
+
+#: src/apotheke-view-ui.xml.in.h:8 src/apotheke-view.c:625
+msgid "CVS Status"
+msgstr "CVS Status"
+
+#: src/apotheke-view-ui.xml.in.h:4 src/apotheke-view.c:627
+msgid "CVS Commit"
+msgstr ""
+
+#: src/apotheke-view-ui.xml.in.h:10 src/apotheke-view.c:628
+#, fuzzy
+msgid "CVS Update"
+msgstr "CVS Status"
+
+#: src/apotheke-view.c:631
+msgid "Revert To Repository State"
+msgstr ""
+
+#: src/apotheke-directory.c:106
 #, c-format
 msgid "Couldn't open %s as directory.\n"
 msgstr "Konnte %s nicht als Verzeichnis öffnen.\n"
 
-#: src/apotheke-directory.c:190
+#: src/apotheke-directory.c:248
 #, c-format
 msgid "Couldn't open directory %s: %s"
 msgstr "Konnte Verzeichnis %s nicht öffnen: %s"
 
-#: src/apotheke-directory.c:261
-#, c-format
-msgid "Couldn't open file: %s\n"
-msgstr "Konnte Datei nicht öffnen: %s\n"
-
-#: src/apotheke-directory.c:317
+#: src/apotheke-directory.c:316
 #, c-format
 msgid "Oops, directory %s has no D flag in CVS/Entries."
 msgstr "Oops, Verzeichnis %s hat kein D Flag in CVS/Entries."
 
-#: src/apotheke-directory.c:419
+#: src/apotheke-directory.c:469
 msgid "No .cvsignore file found.\n"
 msgstr "Keine .cvsignore Datei gefunden.\n"
 
-#: src/apotheke-directory.c:486
+#: src/apotheke-directory.c:514
 msgid "Unknown"
 msgstr "Unbekannt"
 
-#: src/apotheke-directory.c:490
+#: src/apotheke-directory.c:517
 msgid "Not in CVS"
 msgstr "Nicht in CVS"
 
-#: src/apotheke-directory.c:494
-msgid "Directory"
-msgstr "Verzeichnis"
-
-#: src/apotheke-directory.c:496
-msgid "File"
-msgstr "Datei"
-
-#: src/apotheke-directory.c:500
+#: src/apotheke-directory.c:520
 msgid "Ignore"
 msgstr "Ignoriere"
 
-#: src/apotheke-directory.c:503
+#: src/apotheke-directory.c:524
+msgid "Directory"
+msgstr "Verzeichnis"
+
+#: src/apotheke-directory.c:528
+msgid "None"
+msgstr ""
+
+#: src/apotheke-directory.c:531
 msgid "Up-To-Date"
 msgstr "Aktuell"
 
-#: src/apotheke-directory.c:506
+#: src/apotheke-directory.c:534
 msgid "Needs Patch"
 msgstr "Benötigt Patch"
 
-#: src/apotheke-directory.c:509
+#: src/apotheke-directory.c:537
 msgid "Added"
 msgstr "Hinzugefügt"
 
-#: src/apotheke-directory.c:512
+#: src/apotheke-directory.c:540
 msgid "Modified"
 msgstr "Verändert"
 
-#: src/apotheke-directory.c:515
+#: src/apotheke-directory.c:543
 msgid "Removed"
 msgstr "Entfernt"
 
-#: src/apotheke-directory.c:518
+#: src/apotheke-directory.c:546
 msgid "Needs Checkout"
 msgstr "Benötigt Checkout"
 
-#: src/apotheke-directory.c:521
+#: src/apotheke-directory.c:549
 msgid "Needs Merge"
 msgstr "Benötigt Vereinigung"
 
-#: src/apotheke-directory.c:524
+#: src/apotheke-directory.c:552
 msgid "Missing"
 msgstr "Vermisst"
 
+#: src/apotheke-directory.c:555
+msgid "Conflict"
+msgstr ""
+
 #: src/apotheke-view-ui.xml.in.h:1
-msgid "CVS Status"
-msgstr "CVS Status"
+msgid "CVS Add"
+msgstr ""
 
 #: src/apotheke-view-ui.xml.in.h:2
+#, fuzzy
+msgid "CVS Checkout"
+msgstr "Benötigt Checkout"
+
+#: src/apotheke-view-ui.xml.in.h:3
+msgid "CVS Commandline"
+msgstr ""
+
+#: src/apotheke-view-ui.xml.in.h:6
+#, fuzzy
+msgid "CVS Remove"
+msgstr "Entfernt"
+
+#: src/apotheke-view-ui.xml.in.h:7
+#, fuzzy
+msgid "CVS Rtag"
+msgstr "CVS Status"
+
+#: src/apotheke-view-ui.xml.in.h:9
+#, fuzzy
+msgid "CVS Tag"
+msgstr "Tag"
+
+#: src/apotheke-view-ui.xml.in.h:11
 msgid "Hide Ignored Files"
 msgstr "Verstecke ignorierte Dateien"
 
@@ -148,3 +188,12 @@ msgstr "Fabrik für Apotheke Ansicht"
 #: src/Apotheke_View.server.in.h:6
 msgid "View as CVS"
 msgstr "Als CVS betrachten"
+
+#~ msgid "Flag"
+#~ msgstr "Flagge"
+
+#~ msgid "Couldn't open file: %s\n"
+#~ msgstr "Konnte Datei nicht öffnen: %s\n"
+
+#~ msgid "File"
+#~ msgstr "Datei"

@@ -15,6 +15,8 @@ apotheke_view_SOURCES =        \
 	apotheke-file.h	       \
 	apotheke-client-cvs.h  \
 	apotheke-client-cvs.c  \
+	apotheke-highlight-buffer.c \
+	apotheke-highlight-buffer.h \
 	apotheke-options.h
 
 apotheke_view_LDADD = $(APOTHEKE_LIBS)

@@ -20,6 +20,8 @@
 
 #include "apotheke-directory.h"
 
+#define LIST_VIEW_ICON_HEIGHT           24
+
 struct _ApothekeDirectoryPrivate {
 	gchar     *uri;
 	GData     *file_list;
@@ -73,7 +75,6 @@ apotheke_directory_construct (ApothekeDirectory *ad, const gchar *uri)
 	GnomeVFSFileInfo *info;
 
 	GType column_types [AD_NUM_COLUMNS] = {
-		G_TYPE_STRING,   /* COL_FLAG, */
 		GDK_TYPE_PIXBUF, /* COL_FILEICON, */
 		G_TYPE_STRING,   /* COL_FILENAME, */
 		G_TYPE_STRING,   /* COL_VERSION, */
@@ -479,19 +480,15 @@ apotheke_directory_apply_ignore_list (ApothekeDirectory *dir)
 
 
 static void
-get_status_and_flag_text (ApothekeFile *af, 
-			  gchar **status_str, gchar **flag_str)
+get_status_text (ApothekeFile *af, gchar **status_str)
 {
 	*status_str = "";
-	*flag_str = "";
 
 	switch (af->status) {
 	case FILE_STATUS_UNKNOWN:
-		*flag_str = "&";
 		*status_str = _("Unknown");
 		break;
 	case FILE_STATUS_NOT_IN_CVS:
-		*flag_str = "?";
 		*status_str = _("Not in CVS");
 		break;
 	case FILE_STATUS_CVS_FILE:
@@ -501,7 +498,6 @@ get_status_and_flag_text (ApothekeFile *af,
 			*status_str = _("File");
 		break;
 	case FILE_STATUS_IGNORE:
-		*flag_str = "I";
 		*status_str = _("Ignore");
 		break;
 	case FILE_STATUS_UP_TO_DATE:
@@ -528,7 +524,52 @@ get_status_and_flag_text (ApothekeFile *af,
 	case FILE_STATUS_MISSING:
 		*status_str = _("Missing");
 		break;
+	case FILE_STATUS_CONFLICT:
+		*status_str = _("Conflict");
+		break;
 	}
+}
+
+static GdkPixbuf*
+get_file_icon (ApothekeFile *file)
+{
+	GdkPixbuf *pixbuf = NULL;
+	GdkPixbuf *pixbuf_icon = NULL;
+	int width, height;
+	double factor;
+
+	if (file == NULL) return NULL;
+
+	if (file->directory)
+		pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-directory.png", NULL);
+	else {
+		switch (file->status) {
+		case FILE_STATUS_CVS_FILE:
+			pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-file.png", NULL);
+			break;
+		case FILE_STATUS_MODIFIED:
+			pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-file-modified.png", NULL);
+			break;
+		case FILE_STATUS_MISSING:
+			pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-file-missing.png", NULL);
+			break;
+		default:
+			pixbuf = NULL;
+		}
+	}
+     
+	if (pixbuf == NULL) return NULL;
+
+	width = gdk_pixbuf_get_width (pixbuf);
+	height = gdk_pixbuf_get_height (pixbuf);
+	factor = (double) LIST_VIEW_ICON_HEIGHT / (double) height;
+	pixbuf_icon = gdk_pixbuf_scale_simple (pixbuf, width * factor,
+					       LIST_VIEW_ICON_HEIGHT,
+					       GDK_INTERP_BILINEAR);
+
+	g_object_unref (pixbuf);
+
+	return pixbuf_icon;
 }
 
 static void
@@ -554,12 +595,11 @@ add_file_to_tree (GQuark key, gpointer data, gpointer user_data)
 		return;
 	}
 	
-	get_status_and_flag_text (af, &status, &flag);
+	get_status_text (af, &status);
 	
 	gtk_list_store_append (store, &iter);
 	gtk_list_store_set (store, &iter,
-			    AD_COL_FLAG, flag,
-			    AD_COL_FILEICON, NULL /* get_file_icon (view, af->filename) */,
+			    AD_COL_FILEICON, get_file_icon (af),
 			    AD_COL_FILENAME, af->filename,
 			    AD_COL_VERSION, af->cvs_revision ? af->cvs_revision : "",
 			    AD_COL_STATUS, status,

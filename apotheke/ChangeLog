@@ -1,3 +1,64 @@
+2002-05-13  Jens Finke <jens@triq.net>
+
+	My weekend work: Support for CVS diff command, initial status
+	indication through icons, initial context menu work, click on
+	splitter hides console, diff output highlighting.
+
+	* icons/*: New files.
+		
+	* configure.in: Create Makefile in icons dir.
+
+	* Makefile.am (SUBDIRS): Added icons
+
+	* src/apotheke-client-cvs.c (add_cmd_files): New function.
+	(assemble_status_cmd): Simplified function.
+	(assemble_diff_cmd): New function.
+	(apotheke_client_cvs_do): Support diff command.
+
+	* src/apotheke-directory.c (get_status_and_flag_text): Renamed to
+	get_status_text, don't return flag text anymore (deleted this
+	column).
+	(get_file_icon): New function.
+	(add_file_to_tree): Submit get_file_icon function to fill FILEICON
+	column. Don't care about FLAG column.
+
+	* src/apotheke-file.h (ApothekeFileStatus): Added FILE_STATUS_CONFLICT.
+
+	* src/apotheke-main.c: Include system headers first.
+
+	* src/apotheke-options.h: Added diff options.
+	
+	* src/apotheke-view-ui.xml.in: Added lots of CVS commands to Edit
+	menu, removed popup menu.
+
+	* src/apotheke-view.c:
+	(console_is_hidden),
+	(show_console),
+	(hide_console),
+	(execute_cvs_command),
+	(verb_Apotheke_revert_state_cb),
+	(verb_CVS_diff_cb),
+	(handle_context_cvs_status),
+	(handle_context_cvs_diff),
+	(handle_context_revert_state),
+	(add_popup_item),
+	(popup_menu_position_func),
+	(handle_right_click),
+	(event_after_callback),
+	(handle_button_press_event),
+	(gutter_button_press_callback),
+	(gutter_button_release_callback),
+	(setup_tag_table): New functions.
+	(construct_ui): Connect button press/release callbacks to vpane
+	object, connect event-after callback to tree_view, create text
+	buffer with tag table.
+	(get_file_icon): Removed function.
+	(verb_CVS_status_cb): Make use of new functions.
+	(merge_bonobo_ui_callback): Removed bonobo popup api calls.
+	(set_up_tree_view): Don't create flag column.
+
+	* src/apotheke-highlight-buffer.[ch]: New files.
+	
 2002-05-10  Jens Finke <jens@triq.net>
 
 	* src/apotheke-directory.c (apotheke_sort_func): Simplified the

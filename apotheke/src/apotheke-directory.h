@@ -16,7 +16,6 @@ typedef struct _ApothekeDirectoryClass ApothekeDirectoryClass;
 typedef struct _ApothekeDirectoryPrivate ApothekeDirectoryPrivate;
 
 enum {
-	AD_COL_FLAG,
 	AD_COL_FILEICON,
 	AD_COL_FILENAME,
 	AD_COL_VERSION,

@@ -1,9 +1,14 @@
 #include <config.h>
 #include <glib/gtypes.h>
+#include <gdk/gdkevents.h>
 #include <gtk/gtkcellrenderertext.h>
 #include <gtk/gtkcellrendererpixbuf.h>
 #include <gtk/gtkeventbox.h>
 #include <gtk/gtkliststore.h>
+#include <gtk/gtklabel.h>
+#include <gtk/gtkmenuitem.h>
+#include <gtk/gtkseparatormenuitem.h>
+#include <gtk/gtkmenu.h>
 #include <gtk/gtkmain.h>
 #include <gtk/gtkscrolledwindow.h>
 #include <gtk/gtksignal.h>
@@ -18,6 +23,16 @@
 #include "apotheke-view.h"
 #include "apotheke-directory.h"
 #include "apotheke-client-cvs.h"
+#include "apotheke-highlight-buffer.h"
+
+#define GUTTER_HIDDEN_THRESHOLD 4
+
+typedef struct {
+	GtkWidget *paned;
+	int saved_position;
+	double press_y;
+	guint32 press_time;
+} GutterInfo;
 
 struct _ApothekeViewPrivate {
 	ApothekeDirectory *ad;
@@ -31,6 +46,8 @@ struct _ApothekeViewPrivate {
 	ApothekeClientCVS *client;
 
 	gboolean     hide_ignored_files;
+
+	GutterInfo   gutter;
 
 	GData        *icon_cache;
 };
@@ -54,7 +71,9 @@ static void apotheke_view_load_location_callback (NautilusView *nautilus_view,
 						  const char *location,
 						  ApothekeView *view);
 static void apotheke_view_load_uri (ApothekeView *view, const char *location);
-
+static gboolean console_is_hidden (ApothekeView *view);
+static void show_console (ApothekeView *view);
+static void hide_console (ApothekeView *view);
 
 BONOBO_CLASS_BOILERPLATE (ApothekeView, apotheke_view, 
 			  NautilusView, NAUTILUS_TYPE_VIEW)
@@ -91,7 +110,6 @@ apotheke_view_class_init (ApothekeViewClass *klass)
         
 
 static const gchar* titles[] = {
-	N_("Flag"),
 	"",
 	N_("Name"),
 	N_("Revision"),
@@ -107,8 +125,6 @@ set_up_tree_view (GtkTreeView *tree_view)
 {
 	GtkCellRenderer *cell;
         GtkTreeViewColumn *column;
-
-	CREATE_COLUMN (AD_COL_FLAG, 0.5, -1);
 
 	/* filename column */
 	cell = gtk_cell_renderer_pixbuf_new ();
@@ -174,13 +190,55 @@ add_selected_file_to_list (GtkTreeModel *model, GtkTreePath *path,
 }
 
 static void
-verb_CVS_status_cb (BonoboUIComponent *uic, gpointer user_data,
+execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOptions *options)
+{
+	GtkTreeSelection *selection;
+	GList *files;
+	GtkTextMark *mark;
+	GtkTextIter iter;
+
+	if (console_is_hidden (view))
+		show_console (view);
+
+	/* collect files to process */
+	files = NULL;
+	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (view->priv->tree_view));
+	gtk_tree_selection_selected_foreach (selection,
+					     add_selected_file_to_list,
+					     &files);
+
+	/* mark start of comand output */
+	gtk_text_buffer_get_end_iter (view->priv->console, &iter);
+	mark = gtk_text_buffer_create_mark (view->priv->console, NULL,
+					    &iter, TRUE);
+
+	/* execute command */
+	if (apotheke_client_cvs_do (view->priv->client,
+				    view->priv->ad,
+				    command,
+				    options, 
+				    files)) 
+	{
+		/* highlight buffer if desired */
+		gtk_text_buffer_get_iter_at_mark (view->priv->console, 
+						  &iter, mark);
+		apotheke_highlight_buffer_diff (view->priv->console, &iter);
+		
+	}
+	else {
+		g_warning ("Something did go wrong.\n");
+	}
+
+	g_list_free (files);
+}
+
+static void
+verb_CVS_status_cb (BonoboUIComponent *uic, 
+		    gpointer user_data,
 		    const char *cname)
 {
 	ApothekeView *view;
 	ApothekeOptionsStatus *options;
-	GtkTreeSelection *selection;
-	GList *files;
 
 	g_print ("CVS STATUS. do it\n");
 
@@ -189,31 +247,47 @@ verb_CVS_status_cb (BonoboUIComponent *uic, gpointer user_data,
 	options = g_new0 (ApothekeOptionsStatus, 1);
 	options->type = APOTHEKE_CMD_STATUS;
 	options->compression = 0;
-	options->readonly = FALSE;
 
 	options->recursive = FALSE;
 	options->verbose = TRUE;
 	
-	files = NULL;
-	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (view->priv->tree_view));
-	gtk_tree_selection_selected_foreach (selection,
-					     add_selected_file_to_list,
-					     &files);
+	execute_cvs_command (view, APOTHEKE_CMD_STATUS, (ApothekeOptions*) options);
+}
 
-	if (!apotheke_client_cvs_do (view->priv->client,
-				     view->priv->ad,
-				     APOTHEKE_CMD_STATUS,
-				     (ApothekeOptions*) options, 
-				     files)) 
-	{
-		g_warning ("Something did go wrong.\n");
-	}
+static void
+verb_Apotheke_revert_state_cb (BonoboUIComponent *uic, 
+			       gpointer user_data,
+			       const char *cname)
+{
+	/* FIXME: TODO */
+}
 
-	g_list_free (files);
+static void
+verb_CVS_diff_cb (BonoboUIComponent *uic, 
+		  gpointer user_data,
+		  const char *cname)
+{
+	ApothekeView *view;
+	ApothekeOptionsDiff *options;
+
+	g_print ("CVS DIFF. do it\n");
+
+	view = APOTHEKE_VIEW (user_data);
+
+	options = g_new0 (ApothekeOptionsDiff, 1);
+	options->type = APOTHEKE_CMD_DIFF;
+	options->compression = 0;
+
+	options->recursive = FALSE;
+	options->include_add_removed_files = FALSE;
+	options->unified_diff = TRUE;
+
+	execute_cvs_command (view, APOTHEKE_CMD_DIFF, (ApothekeOptions*) options);
 }
 
 static BonoboUIVerb apotheke_verbs[] = {
 	BONOBO_UI_VERB ("CVS Status", verb_CVS_status_cb),
+	BONOBO_UI_VERB ("CVS Diff", verb_CVS_diff_cb),
 	BONOBO_UI_VERB_END
 };
 
@@ -281,11 +355,265 @@ list_activate_callback (GtkTreeView *tree_view, GtkTreePath *path,
 }
 
 static void
+handle_context_cvs_status (GtkWidget *widget, gpointer data)
+{
+	verb_CVS_status_cb (NULL, data, NULL);
+}
+
+static void
+handle_context_cvs_diff (GtkWidget *widget, gpointer data)
+{
+	verb_CVS_diff_cb (NULL, data, NULL);
+}
+
+static void
+handle_context_revert_state (GtkWidget *widget, gpointer data)
+{
+	verb_Apotheke_revert_state_cb (NULL, data, NULL);
+}
+
+static void
+add_popup_item (ApothekeView *view, GtkWidget **menu, gchar *txt, gpointer callback)
+{
+	GtkWidget *label;
+	GtkWidget *item;
+
+	if (g_ascii_strcasecmp ("-", txt)) {
+		label = gtk_label_new (txt);
+		gtk_misc_set_alignment (GTK_MISC (label), 0.0, 0.5);
+		gtk_widget_show (label);
+
+		item = gtk_menu_item_new ();
+		gtk_container_add (GTK_CONTAINER (item), label);
+		g_signal_connect (G_OBJECT (item), "activate",
+				  G_CALLBACK (callback), view);
+	}
+	else {		
+		item = gtk_separator_menu_item_new ();		
+	}
+       
+	gtk_widget_show (item);
+
+	gtk_menu_shell_append (GTK_MENU_SHELL (*menu), item);
+}
+
+/* This function is taken from eel/eel/eel-gtk-extensions.c
+ * written by John Sullivan, Ramiro Estrugo and Darin Adler.
+ */
+static void
+popup_menu_position_func (GtkMenu  *menu,
+			  int      *x,
+			  int      *y,
+			  gboolean *push_in,
+			  gpointer  user_data)
+{
+	GdkPoint *offset;
+	GtkRequisition requisition;
+
+	g_assert (x != NULL);
+	g_assert (y != NULL);
+
+	offset = (GdkPoint *) user_data;
+
+	g_assert (offset != NULL);
+
+	gtk_widget_size_request (GTK_WIDGET (menu), &requisition);
+	  
+	*x = CLAMP (*x + (int) offset->x, 0, MAX (0, gdk_screen_width () - requisition.width));
+	*y = CLAMP (*y + (int) offset->y, 0, MAX (0, gdk_screen_height () - requisition.height));
+
+	*push_in = FALSE;
+}
+
+
+static void
+handle_right_click (ApothekeView *view, GdkEventButton *event)
+{
+	GdkPoint offset;
+	GtkWidget *menu;
+
+	/* create context menu */
+	menu = gtk_menu_new ();
+	g_signal_connect (G_OBJECT (menu), "hide",
+			  G_CALLBACK (g_object_unref), NULL);
+
+	g_object_ref (G_OBJECT (menu));
+	gtk_object_sink (GTK_OBJECT (menu));
+	
+	add_popup_item (view, &menu, _("CVS Status"), handle_context_cvs_status);
+	add_popup_item (view, &menu, _("CVS Diff"), handle_context_cvs_diff);
+	add_popup_item (view, &menu, "-", NULL);
+	add_popup_item (view, &menu, _("Revert To Repository State"), handle_context_revert_state);
+	
+	/* display menu */
+	gtk_widget_show_all (menu);
+
+	offset.x = 2;
+	offset.y = 2;
+	
+	gtk_menu_popup (GTK_MENU (menu), 
+			NULL, 
+			NULL, 
+			popup_menu_position_func,
+			&offset, 
+			event->button,
+			event ? event->time : GDK_CURRENT_TIME);
+}
+
+static void
+event_after_callback (GtkWidget *widget, GdkEventAny *event, gpointer data)
+{
+	ApothekeView *view;
+
+	view = APOTHEKE_VIEW (data);
+
+	if (event->type == GDK_BUTTON_PRESS
+	    && event->window == gtk_tree_view_get_bin_window (GTK_TREE_VIEW (widget))
+	    && (((GdkEventButton *) event)->button == 3)) {
+		handle_right_click (view, (GdkEventButton*) event);
+	}
+}
+
+/* This code is taken from nautilus/src/fm-list-view.c written by
+ * John Sullivan, Anders Carlsson and David Emory Watson.
+ */
+static gint
+handle_button_press_event (GtkWidget *widget, GdkEventButton *event,  gpointer data) 
+{
+	GtkTreeView *tree_view;
+	GtkTreePath *path;
+
+	tree_view = GTK_TREE_VIEW (widget);
+
+	if (event->window != gtk_tree_view_get_bin_window (tree_view)) {
+		return FALSE;
+	}
+
+	if (gtk_tree_view_get_path_at_pos (tree_view, event->x, event->y,
+					   &path, NULL, NULL, NULL)) {
+		if (event->button == 3
+		    && gtk_tree_selection_path_is_selected (gtk_tree_view_get_selection (tree_view), path)) {
+			/* Don't let the default code run because if multiple rows
+			   are selected it will unselect all but one row; but we
+			   want the right click menu to apply to everything that's
+			   currently selected. */
+			return TRUE;
+		}
+
+		gtk_tree_path_free (path);
+	} else {
+		/* Deselect if people click outside any row. It's OK to
+		   let default code run; it won't reselect anything. */
+		gtk_tree_selection_unselect_all (gtk_tree_view_get_selection (tree_view));
+	}
+
+	return FALSE;
+}
+
+static gboolean
+console_is_hidden (ApothekeView *view)
+{
+	GtkWidget *paned;
+	int height;
+
+	paned = view->priv->gutter.paned;
+	height = paned->allocation.height;
+
+	return ((height - gtk_paned_get_position (GTK_PANED (paned))) < 10);
+}
+
+static void
+show_console (ApothekeView *view)
+{
+	GutterInfo *info;
+
+	info = &view->priv->gutter;
+	gtk_paned_set_position (GTK_PANED (info->paned), info->saved_position);
+}
+
+static void
+hide_console (ApothekeView *view)
+{
+	GutterInfo *info;
+	int height;
+
+	info = &view->priv->gutter;
+	height = info->paned->allocation.height;
+
+	info->saved_position = gtk_paned_get_position (GTK_PANED (info->paned));
+	gtk_paned_set_position (GTK_PANED (info->paned), height);
+}
+
+static gint
+gutter_button_press_callback (GtkWidget *widget, GdkEventButton *event,  gpointer data) 
+{
+	ApothekeView *view;
+	
+	view = APOTHEKE_VIEW (data);
+
+	view->priv->gutter.press_y = event->y;
+	view->priv->gutter.press_time = event->time;
+	
+	return FALSE;
+}
+
+static gint
+gutter_button_release_callback (GtkWidget *widget, GdkEventButton *event,  gpointer data) 
+{
+	ApothekeView *view;
+	int diff_y;
+	int diff_time;
+	
+	view = APOTHEKE_VIEW (data);
+	
+	diff_y = abs (event->y - view->priv->gutter.press_y);
+	diff_time = event->time - view->priv->gutter.press_time;
+	
+	if (diff_y < 1 && diff_time < 200 ) {
+		if (console_is_hidden (view)) {
+			show_console (view);
+		}
+		else {
+			hide_console (view);
+		}
+	}
+
+	return FALSE;
+}
+
+static GtkTextTagTable*
+setup_tag_table (void)
+{
+	GtkTextTagTable *table;
+	GtkTextTag *tag;
+
+	table = gtk_text_tag_table_new ();
+	
+	/* diff tags */
+	tag = gtk_text_tag_new ("diff-added");
+	g_object_set (G_OBJECT (tag), 
+		      "foreground", "black",
+		      "background", "yellow",
+		      NULL);
+	gtk_text_tag_table_add (table, tag);
+
+	tag = gtk_text_tag_new ("diff-removed");
+	g_object_set (G_OBJECT (tag),
+		      "foreground", "black",
+		      "background", "RoyalBlue",
+		      NULL);
+	gtk_text_tag_table_add (table, tag);
+	
+	return table;
+}
+
+static void
 construct_ui (ApothekeView *view)
 {
 	ApothekeViewPrivate *priv;
 	GtkWidget *scroll_window;
 	GtkWidget *vpane;
+	GtkTextTagTable *tag_table;
 	gchar *text;
 
 	priv = view->priv;
@@ -297,7 +625,12 @@ construct_ui (ApothekeView *view)
 				     GTK_SELECTION_MULTIPLE);
 	gtk_tree_view_set_rules_hint (GTK_TREE_VIEW (priv->tree_view), TRUE);
 	g_signal_connect (G_OBJECT (priv->tree_view), "row_activated", 
-			  G_CALLBACK (list_activate_callback), view), 
+			  G_CALLBACK (list_activate_callback), view);
+	g_signal_connect_object (priv->tree_view, "event-after",
+				G_CALLBACK (event_after_callback), view, 0);
+	g_signal_connect_object (priv->tree_view, "button_press_event",
+				 G_CALLBACK (handle_button_press_event), view, 0);
+
 	
 	/* put it into a scroll window */
 	scroll_window = gtk_scrolled_window_new (NULL, NULL);
@@ -310,10 +643,16 @@ construct_ui (ApothekeView *view)
 
 	/* vpane */
 	vpane = gtk_vpaned_new ();
+	priv->gutter.paned = vpane;
+	g_signal_connect (G_OBJECT (vpane), "button-press-event",
+			  G_CALLBACK (gutter_button_press_callback), view);
+	g_signal_connect (G_OBJECT (vpane), "button-release-event",
+			  G_CALLBACK (gutter_button_release_callback), view);
 	gtk_paned_pack1 (GTK_PANED (vpane), scroll_window, TRUE, TRUE);
-
+	
 	/* text console */
-	priv->console = gtk_text_buffer_new (NULL);
+	tag_table = setup_tag_table ();
+	priv->console = gtk_text_buffer_new (tag_table);
 	text = "Apotheke version " VERSION ", (C) 2002 Jens Finke <jens@triq.net>\n";
 	gtk_text_buffer_set_text (priv->console, text, -1);
 	priv->text_view = gtk_text_view_new_with_buffer (priv->console);
@@ -393,78 +732,6 @@ apotheke_view_finalize (GObject *object)
 	if (G_OBJECT_CLASS (parent_class)->finalize)
 		G_OBJECT_CLASS (parent_class)->finalize (object);	
 }
-
-
-#if 0
-static GdkPixbuf*
-get_file_icon (ApothekeView *view, const char *filename)
-{
-	int i;
-	char *icon_name;
-	char *mime_type;
-	GdkPixbuf *pixbuf;
-	GQuark quark;
-	gchar *path;
-
-	if (view->priv->ad == NULL) return NULL;
-
-	path = g_build_filename (view->priv->ad->uri, filename, NULL);
-
-	mime_type = gnome_vfs_get_mime_type (path);
-	g_free (path);
-
-	if (mime_type == NULL) {
-		g_print ("no mime type info.\n");
-		return NULL;
-	}
-
-	quark = g_quark_from_string (mime_type);
-	pixbuf = (GdkPixbuf*) g_datalist_id_get_data (&view->priv->icon_cache, quark);
-	if (pixbuf != NULL) {
-		g_print ("found icon for: %s\n", mime_type);
-		g_free (mime_type);
-		return gdk_pixbuf_ref (pixbuf);
-	}
-
-	/* assemble icon name */
-	for (i = 0; i < strlen (mime_type); i++) {
-		if (mime_type[i] == '/')
-			mime_type[i] = '-';
-	}
-	icon_name = g_strconcat (DATADIR, "/pixmaps/document-icons/gnome-", 
-				 mime_type, ".png", NULL);
-
-	pixbuf = NULL;
-	/* load and scale icon file */
-	if (g_file_test (icon_name, G_FILE_TEST_EXISTS)) {
-		GdkPixbuf *tmp;
-		int width, height;
-		double factor;
-
-		g_print ("load icon: %s\n", icon_name);
-
-		tmp = gdk_pixbuf_new_from_file (icon_name, NULL);
-		width = gdk_pixbuf_get_width (tmp);
-		height = gdk_pixbuf_get_height (tmp);
-		factor = (double) LIST_VIEW_ICON_HEIGHT / (double) height;
-		
-		pixbuf = gdk_pixbuf_scale_simple (tmp, width * factor,
-						  LIST_VIEW_ICON_HEIGHT,
-						  GDK_INTERP_BILINEAR);
-		g_object_unref (G_OBJECT (tmp));
-
-		g_datalist_id_set_data_full (&view->priv->icon_cache, 
-					     quark, 
-					     gdk_pixbuf_ref (pixbuf),
-					     (GDestroyNotify)gdk_pixbuf_unref);
-	}
-		
-	g_free (icon_name);
-	g_free (mime_type);
-	
-	return pixbuf;
-}
-#endif
 
 static void
 apotheke_view_load_uri (ApothekeView *view, const char *location)

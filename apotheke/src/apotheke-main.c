@@ -1,7 +1,8 @@
 #include <config.h>
 
-#include "apotheke-view.h"
 #include <libnautilus/nautilus-view-standard-main.h>
+
+#include "apotheke-view.h"
 
 #define FACTORY_IID     "OAFIID:apotheke_view_factory:2002-03-09-23-02-15"
 #define VIEW_IID        "OAFIID:apotheke_view:2002-03-09-23-02-15"

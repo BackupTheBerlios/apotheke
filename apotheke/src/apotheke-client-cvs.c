@@ -78,39 +78,63 @@ apotheke_client_cvs_new (GtkTextBuffer *console)
 	return client;
 }
 
+#define option2string(value, o1, o2) \
+      value ? o1 : o2                   
+
 
 static gchar*
-assemble_status_cmd (ApothekeDirectory *dir, 
-		     ApothekeOptionsStatus *options, 
-		     GList *files)
+add_cmd_files (gchar *cmd, GList *files)
 {
 	GList *it;
-	gchar *cmd;
-	gchar *recursive;
-	gchar *verbose;
 	gchar *tmp;
-
-	if (options->recursive)
-		recursive = "-R";
-	else 
-		recursive = "-l";
-
-	if (options->verbose)
-		verbose = "-v";
-	else
-		verbose = "";
-
-	cmd = g_strconcat ("cvs -f status ", verbose, " ", recursive, NULL); 
 
 	for (it = files; it != NULL; it = it->next) {
 		tmp = g_strconcat (cmd, " ", (gchar*) it->data, NULL);
 		g_free (cmd);
 		cmd = tmp;
 	}
+	
+	return cmd;
+}
+
+
+static gchar*
+assemble_status_cmd (ApothekeDirectory *dir, 
+		     ApothekeOptionsStatus *options, 
+		     GList *files)
+{
+	gchar *cmd;
+       
+	cmd = g_strconcat ("cvs -f status ", 
+			   option2string (options->verbose, "-v", ""),
+			   " ", 
+			   option2string (options->recursive, "-R", "-l"),
+			   NULL); 
+	
+	cmd = add_cmd_files (cmd, files);
 
 	return cmd;
 }
 
+static gchar*
+assemble_diff_cmd (ApothekeDirectory *dir, 
+		   ApothekeOptionsDiff *options, 
+		   GList *files)
+{
+	gchar *cmd;
+
+	cmd = g_strconcat ("cvs -f diff ", 
+			   option2string (options->recursive, "-R", "-l"), 
+			   " ",
+			   option2string (options->include_add_removed_files, "-N", ""),
+			   " ", 
+			   option2string (options->unified_diff, "-u", ""),
+			   NULL); 
+
+	cmd = add_cmd_files (cmd, files);
+
+	return cmd;
+}
 
 gboolean 
 apotheke_client_cvs_do (ApothekeClientCVS   *client, 
@@ -142,6 +166,11 @@ apotheke_client_cvs_do (ApothekeClientCVS   *client,
 		g_print ("status command\n");
 		cvs_cmd = assemble_status_cmd (dir, (ApothekeOptionsStatus*) options, 
 					       files);
+		break;
+	case APOTHEKE_CMD_DIFF:
+		g_print ("diff command\n");
+		cvs_cmd = assemble_diff_cmd (dir, (ApothekeOptionsDiff*) options,
+					     files);
 		break;
 
 	default:

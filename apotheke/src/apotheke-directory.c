@@ -113,6 +113,13 @@ apotheke_directory_construct (ApothekeDirectory *ad, const gchar *uri)
 		ad->priv->uri = NULL;
 	}
 	gnome_vfs_file_info_unref (info);
+
+	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
+					 AD_COL_FILENAME, 
+					 apotheke_sort_func, NULL, NULL);
+
+	gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (ad),
+					      AD_COL_FILENAME, GTK_SORT_ASCENDING);
 }
 
 ApothekeDirectory* 
@@ -162,37 +169,31 @@ apotheke_sort_func (GtkTreeModel *model,
 		    GtkTreeIter *b,
 		    gpointer user_data)
 {
-#if 0
-	ApothekeFile *af_a;
-	ApothekeFile *af_b;
-	int weight_a = 0;
-	int weight_b = 0; 
+	gboolean a_is_directory;
+	gboolean b_is_directory;
+	char *a_name;
+	char *b_name;
 
-	gtk_tree_model_get (model, a, AD_COL_FILESTRUCT, &af_a, -1);
-	gtk_tree_model_get (model, b, AD_COL_FILESTRUCT, &af_b, -1);
+	g_print ("sortable func\n");
 
-	if (af_a->directory && !af_b->directory) {
+	gtk_tree_model_get (model, a, 
+			    AD_COL_FILENAME, &a_name, 
+			    AD_COL_DIRECTORY, &a_is_directory,
+			    -1);
+	gtk_tree_model_get (model, b, 
+			    AD_COL_FILENAME, &b_name, 
+			    AD_COL_DIRECTORY, &b_is_directory,
+			    -1);
+
+	if (a_is_directory == b_is_directory) {
+		return g_utf8_collate (a_name, b_name);
+	}
+	else if (a_is_directory) {
 		return -1;
 	}
-	else if (!af_a->directory && af_b->directory) {
+	else {
 		return 1;
 	}
-	else {
-		if (af_a->type != FILE_TYPE_CVS &&
-		    af_b->type == FILE_TYPE_CVS)
-		{
-			return -1;
-		}
-		if (af_b->status == FILE_TYPE_CVS &&
-		    af_a->status >= FILE_TYPE_CVS)
-		{
-			return 1;
-		}
-		else {
-			return g_utf8_collate (af_a->filename, af_b->filename);
-		}
-	}
-#endif
 }
 
 #ifdef HAVE_LIBFAM

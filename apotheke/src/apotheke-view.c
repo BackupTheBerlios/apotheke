@@ -112,7 +112,7 @@ apotheke_view_class_init (ApothekeViewClass *klass)
         if (min_width > -1)                                       \
                 gtk_tree_view_column_set_min_width (column, min_width); \
         gtk_tree_view_column_set_resizable (column, TRUE); \
-        gtk_tree_view_column_set_sort_column_id (column, id); \
+        gtk_tree_view_column_set_sort_column_id (column, source_id); \
         gtk_tree_view_append_column (tree_view, column)
         
 
@@ -148,7 +148,7 @@ set_up_tree_view (GtkTreeView *tree_view)
 	gtk_cell_renderer_set_fixed_size (cell, -1, LIST_VIEW_MINIMUM_ROW_HEIGHT);
 	
 	column = gtk_tree_view_column_new ();
-	gtk_tree_view_column_set_sort_column_id (column, VIEW_COL_NAME);
+	gtk_tree_view_column_set_sort_column_id (column, AD_COL_FILENAME);
 	gtk_tree_view_column_set_title (column, titles[VIEW_COL_NAME]);
 	
 	gtk_tree_view_column_pack_start (column, cell, FALSE);

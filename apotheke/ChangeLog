@@ -1,3 +1,27 @@
+2002-11-26  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-directory.c (apotheke_directory_construct): Setup
+	sort function.
+	(apotheke_sort_func): Reworked.
+
+	* src/apotheke-view.c (setup_tree_view): Fixed column sorting ids.
+
+2002-11-26  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-file.h: Removed.
+	
+	* src/Makefile.am (SOURCES): Removed apotheke-file.h
+
+	* src/apotheke-cvs-entries.[ch] (apotheke_cvs_entries_get_entries):
+	Return list of all CVS entries.
+
+	* src/apotheke-directory.[ch]: Use the tree model directly to
+	store all file information. Don't use ApothekeFile anymore.
+
+	* src/apotheke-view.c: View columns are independent of model
+	columns now. Obtain a filename of an entry through the tree model,
+	don't use ApothekeFile.
+
 2002-11-14  Ross Burton  <ross@burtonini.com>
 
 	* src/Makefile.am: Install the binary in ${libexecdir}, instead of

@@ -1,3 +1,10 @@
+2002-05-10  Jens Finke <jens@triq.net>
+
+	* src/apotheke-directory.c (apotheke_sort_func): Simplified the
+	function.
+	(apotheke_directory_create_file_list): Set default sort function
+	before adding elements to the tree.
+
 2002-03-21  Jens Finke <jens@triq.net>
 
 	* Apotheke_View.server.in: Changed 'View as Apotheke' to 'View as

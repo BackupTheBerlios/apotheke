@@ -150,23 +150,28 @@ apotheke_sort_func (GtkTreeModel *model,
 
 	gtk_tree_model_get (model, a, AD_COL_FILESTRUCT, &af_a, -1);
 	gtk_tree_model_get (model, b, AD_COL_FILESTRUCT, &af_b, -1);
-	
-	if (af_a->directory)
-		weight_a = (weight_a + 1) << 2;
-	
-	if (af_b->directory)
-		weight_b = (weight_b + 1) << 2;
-	
-	weight_a = weight_a + af_a->status; 
-	weight_b = weight_b + af_b->status;
-	
-	if (af_a->status == FILE_STATUS_UNKNOWN || af_a->status == FILE_STATUS_NOT_IN_CVS) weight_a++;
-	if (af_b->status == FILE_STATUS_UNKNOWN || af_b->status == FILE_STATUS_NOT_IN_CVS) weight_b++;
 
-	if (weight_a == weight_b) 
-		return g_utf8_collate (af_a->filename, af_b->filename);
-	else
-		return (weight_b - weight_a);
+	if (af_a->directory && !af_b->directory) {
+		return -1;
+	}
+	else if (!af_a->directory && af_b->directory) {
+		return 1;
+	}
+	else {
+		if (af_a->status < FILE_STATUS_CVS_FILE &&
+		    af_b->status >= FILE_STATUS_CVS_FILE)
+		{
+			return -1;
+		}
+		if (af_b->status < FILE_STATUS_CVS_FILE &&
+		    af_a->status >= FILE_STATUS_CVS_FILE)
+		{
+			return 1;
+		}
+		else {
+			return g_utf8_collate (af_a->filename, af_b->filename);
+		}
+	}
 }
 
 static void
@@ -570,6 +575,10 @@ apotheke_directory_create_file_list (ApothekeDirectory *dir)
 {
 	g_return_if_fail (APOTHEKE_IS_DIRECTORY (dir));
 
+	gtk_tree_sortable_set_default_sort_func (GTK_TREE_SORTABLE (dir),
+						 apotheke_sort_func,
+						 NULL, NULL);
+
 	apotheke_directory_create_initial_file_list (dir);
 	apotheke_directory_apply_cvs_status (dir);
 	apotheke_directory_apply_ignore_list (dir);
@@ -579,9 +588,6 @@ apotheke_directory_create_file_list (ApothekeDirectory *dir)
 			    add_file_to_tree,
 			    dir);
 
-	gtk_tree_sortable_set_default_sort_func (GTK_TREE_SORTABLE (dir),
-						 apotheke_sort_func,
-						 NULL, NULL);
 }
 
 static void

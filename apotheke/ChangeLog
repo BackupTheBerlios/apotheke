@@ -1,4 +1,9 @@
-2000-05-31  Jens Finke <jens@triq.net>
+2002-05-31  Jens Finke <jens@triq.net>
+
+	* src/apotheke-directory.c (monitor_callback): #if 0'ed not yet 
+	existing functions.
+
+2002-05-31  Jens Finke <jens@triq.net>
 
 	* configure.in: Added check for libfam.
 

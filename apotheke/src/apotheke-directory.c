@@ -207,12 +207,15 @@ monitor_callback (GnomeVFSMonitorHandle *handle,
 	switch (event_type) {
 	case GNOME_VFS_MONITOR_EVENT_CHANGED:
 		g_print ("Changed: %s  %s\n", monitor_uri, info_uri);
+	        /* FIXME: these function do not exist yet. */
+#if 0
 		af = get_apotheke_file_from_uri (ad, info_uri);
 		if (af->status == FILE_STATUS_CVS_FILE) {
 			af->status = FILE_STATUS_MODIFIED;
 			/* FIXME: this function doesn't exist yet. */
 			/* apply_apotheke_file_to_model (ad, af); */
 		}
+#endif
 		break;
 	case GNOME_VFS_MONITOR_EVENT_DELETED:
 		g_print ("Deleted: %s  %s\n", monitor_uri, info_uri);

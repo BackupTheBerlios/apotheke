@@ -233,6 +233,10 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 		gtk_text_buffer_get_iter_at_mark (view->priv->console, 
 						  &iter, mark);
 		apotheke_highlight_buffer_diff (view->priv->console, &iter);
+
+		gtk_text_buffer_get_end_iter (view->priv->console, &iter);
+		gtk_text_view_scroll_to_iter (GTK_TEXT_VIEW (view->priv->text_view), &iter,
+					      0.0, FALSE, 0.0, 0.0);
 		
 	}
 	else {

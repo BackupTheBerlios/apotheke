@@ -1,5 +1,10 @@
 2002-06-02  Jens Finke <jens@triq.net>
 
+	* src/apotheke-view.c (execute_cvs_command): Scroll to end of
+	buffer after command is finished.
+
+2002-06-02  Jens Finke <jens@triq.net>
+
 	* src/apotheke-client-cvs.c (apotheke_client_cvs_do): Print out
 	CVS command which is executed.
 

@@ -1,5 +1,15 @@
 2002-12-30  Jens Finke  <jens@triq.net>
 
+	* src/apotheke-directory.[ch]
+	(apotheke_directory_block_monitor_handler),
+	(apotheke_directory_unblock_monitor_handler): New methods.
+
+	* src/apotheke-view.c (execute_cvs_command): Block all file
+	monitoring handler and update the file list after cvs command
+	completion.
+	
+2002-12-30  Jens Finke  <jens@triq.net>
+
 	Implemented file monitoring and status updates for files which are
 	modified by external programs.
 

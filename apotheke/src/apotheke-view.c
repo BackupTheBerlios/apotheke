@@ -216,6 +216,7 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 	GList *files;
 	GtkTextMark *mark;
 	GtkTextIter iter;
+	ApothekeDirectory *ad;
 
 	/* collect files to process */
 	files = NULL;
@@ -230,6 +231,9 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 					    &iter, TRUE);
 
 	nautilus_view_report_load_underway (NAUTILUS_VIEW (view));
+
+	ad = view->priv->ad;
+	apotheke_directory_block_monitor_handler (ad);
 
 	/* execute command */
 	if (apotheke_client_cvs_do (view->priv->client,
@@ -248,12 +252,16 @@ execute_cvs_command (ApothekeView *view, ApothekeCommandType command, ApothekeOp
 		gtk_text_buffer_get_end_iter (view->priv->console, &iter);
 		gtk_text_view_scroll_to_iter (GTK_TEXT_VIEW (view->priv->text_view), &iter,
 					      0.0, FALSE, 0.0, 0.0);
+
+		apotheke_directory_create_file_list (ad, TRUE);
 		
 	}
 	else {
 		nautilus_view_report_load_failed (NAUTILUS_VIEW (view));
 		g_warning ("Something did go wrong.\n");
 	}
+
+	apotheke_directory_unblock_monitor_handler (ad);
 
 
 	g_list_free (files);

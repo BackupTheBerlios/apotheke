@@ -26,6 +26,7 @@
 struct _ApothekeDirectoryPrivate {
 	gchar     *uri;
 	gboolean  hide_ignored_files;
+	gboolean  block_monitor_handler;
 
 #ifdef HAVE_LIBFAM
 	GnomeVFSMonitorHandle *dir_monitor;
@@ -64,6 +65,7 @@ apotheke_directory_instance_init (ApothekeDirectory *dir)
 	dir->priv = priv;
 	priv->uri = NULL;
 	priv->hide_ignored_files = FALSE;
+	priv->block_monitor_handler = FALSE;
 #ifdef HAVE_LIBFAM
 	priv->dir_monitor = NULL;
 	priv->entries_monitor = NULL;
@@ -277,6 +279,11 @@ dir_monitor_callback (GnomeVFSMonitorHandle *handle,
 
 	g_print ("dir monitor callback: ");
 
+	if (ad->priv->block_monitor_handler) {
+		g_print ("blocked.\n");
+		return;
+	}
+
 	switch (event_type) {
 	case GNOME_VFS_MONITOR_EVENT_CHANGED:
 		g_print ("Changed: %s\n", info_uri);
@@ -364,6 +371,11 @@ entries_monitor_callback (GnomeVFSMonitorHandle *handle,
 	ad = APOTHEKE_DIRECTORY (user_data);
 
 	g_print ("entries monitor callback: ");
+
+	if (ad->priv->block_monitor_handler) {
+		g_print ("blocked.\n");
+		return;
+	}
 
 	switch (event_type) {
 	case GNOME_VFS_MONITOR_EVENT_CHANGED:
@@ -872,3 +884,18 @@ apotheke_directory_get_uri (ApothekeDirectory *dir)
 	return dir->priv->uri;
 }
 
+void 
+apotheke_directory_block_monitor_handler (ApothekeDirectory *dir)
+{
+	g_return_if_fail (APOTHEKE_IS_DIRECTORY (dir));
+
+	dir->priv->block_monitor_handler = TRUE;
+}
+
+void 
+apotheke_directory_unblock_monitor_handler (ApothekeDirectory *dir)
+{
+	g_return_if_fail (APOTHEKE_IS_DIRECTORY (dir));
+
+	dir->priv->block_monitor_handler = FALSE;
+}

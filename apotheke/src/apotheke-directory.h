@@ -60,4 +60,7 @@ void apotheke_directory_create_file_list (ApothekeDirectory *dir, gboolean hide_
 
 gchar* apotheke_directory_get_uri (ApothekeDirectory *dir);
 
+void apotheke_directory_block_monitor_handler (ApothekeDirectory *dir);
+void apotheke_directory_unblock_monitor_handler (ApothekeDirectory *dir);
+
 #endif /* __APOTHEKE_DIRECTORY_H__ */

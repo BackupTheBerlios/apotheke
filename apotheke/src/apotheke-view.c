@@ -98,7 +98,7 @@ apotheke_view_class_init (ApothekeViewClass *klass)
         gobject_class->finalize = apotheke_view_finalize;
 }
 
-#define CREATE_COLUMN(id, align, min_width)       \
+#define CREATE_COLUMN(id, align, min_width, source_id)       \
         cell = gtk_cell_renderer_text_new (); \
 	g_object_set (G_OBJECT (cell),        \
 		      "xalign", align,        \
@@ -106,7 +106,7 @@ apotheke_view_class_init (ApothekeViewClass *klass)
  	gtk_cell_renderer_set_fixed_size (cell, -1, LIST_VIEW_MINIMUM_ROW_HEIGHT); \
         column = gtk_tree_view_column_new_with_attributes (titles[ id ], \
 		                                           cell,    \
-                                                           "text", id, \
+                                                           "text", source_id, \
 							   NULL); \
         gtk_tree_view_column_set_alignment (column, align); \
         if (min_width > -1)                                       \
@@ -115,6 +115,16 @@ apotheke_view_class_init (ApothekeViewClass *klass)
         gtk_tree_view_column_set_sort_column_id (column, id); \
         gtk_tree_view_append_column (tree_view, column)
         
+
+enum {
+	VIEW_COL_ICON,
+	VIEW_COL_NAME,
+	VIEW_COL_REVISION,
+	VIEW_COL_STATUS,
+	VIEW_COL_OPTION,
+	VIEW_COL_TAG,
+	VIEW_COL_DATE
+};
 
 static const gchar* titles[] = {
 	"",
@@ -138,8 +148,8 @@ set_up_tree_view (GtkTreeView *tree_view)
 	gtk_cell_renderer_set_fixed_size (cell, -1, LIST_VIEW_MINIMUM_ROW_HEIGHT);
 	
 	column = gtk_tree_view_column_new ();
-	gtk_tree_view_column_set_sort_column_id (column, AD_COL_FILENAME);
-	gtk_tree_view_column_set_title (column, titles[AD_COL_FILENAME]);
+	gtk_tree_view_column_set_sort_column_id (column, VIEW_COL_NAME);
+	gtk_tree_view_column_set_title (column, titles[VIEW_COL_NAME]);
 	
 	gtk_tree_view_column_pack_start (column, cell, FALSE);
 	gtk_tree_view_column_set_attributes (column, cell,
@@ -154,11 +164,11 @@ set_up_tree_view (GtkTreeView *tree_view)
         gtk_tree_view_column_set_resizable (column, TRUE);
 	gtk_tree_view_append_column (tree_view, column);
 
-	CREATE_COLUMN (AD_COL_VERSION, 0.01, 100);
-	CREATE_COLUMN (AD_COL_STATUS, 0.01, 100);
-	CREATE_COLUMN (AD_COL_ATTRIBUTES, 0.5, 100);
-	CREATE_COLUMN (AD_COL_TAG, 0.01, 100);
-	CREATE_COLUMN (AD_COL_DATE, 0.01, 100);
+	CREATE_COLUMN (VIEW_COL_REVISION, 0.01, 100, AD_COL_VERSION);
+	CREATE_COLUMN (VIEW_COL_STATUS, 0.01, 100, AD_COL_STATUS_STR);
+	CREATE_COLUMN (VIEW_COL_OPTION, 0.5, 100, AD_COL_ATTRIBUTES);
+	CREATE_COLUMN (VIEW_COL_TAG, 0.01, 100, AD_COL_TAG);
+	CREATE_COLUMN (VIEW_COL_DATE, 0.01, 100, AD_COL_DATE);
 }
 
 
@@ -190,13 +200,13 @@ add_selected_file_to_list (GtkTreeModel *model, GtkTreePath *path,
 			   GtkTreeIter *iter, gpointer data)
 {
 	GList **list;
-	ApothekeFile *af;
+	char *filename;
 
 	list = (GList**) data;
 
-	gtk_tree_model_get (model, iter, AD_COL_FILESTRUCT, &af, -1);
+	gtk_tree_model_get (model, iter, AD_COL_FILENAME, &filename, -1);
 	
-        *list = g_list_append (*list, af->filename);
+        *list = g_list_append (*list, filename);
 }
 
 static void
@@ -496,9 +506,9 @@ list_activate_callback (GtkTreeView *tree_view, GtkTreePath *path,
 {
 	ApothekeView *view;
 	GtkTreeIter iter;
-	ApothekeFile *af;
 	gchar *uri;
 	gchar *filename;
+	gchar *filename_local;
 
 	view = APOTHEKE_VIEW (user_data);
 	
@@ -507,19 +517,19 @@ list_activate_callback (GtkTreeView *tree_view, GtkTreePath *path,
 	{
 		gtk_tree_model_get (GTK_TREE_MODEL (view->priv->ad),
 				    &iter, 
-				    AD_COL_FILESTRUCT, &af,
+				    AD_COL_FILENAME, &filename,
 				    -1);
-		g_assert (af != NULL);
+		g_assert (filename != NULL);
 
-		filename = g_filename_from_utf8 (af->filename, -1, NULL, NULL, NULL);
+		filename_local = g_filename_from_utf8 (filename, -1, NULL, NULL, NULL);
 		uri = g_build_filename (apotheke_directory_get_uri (view->priv->ad), 
-					filename, NULL);
+					filename_local, NULL);
 
 		nautilus_view_open_location_in_this_window (NAUTILUS_VIEW (view), 
 							    uri);
 
 		g_free (uri);
-		g_free (filename);
+		g_free (filename_local);
 	}
 }
 
@@ -795,9 +805,9 @@ config_value_changed_cb (GConfClient *client,
 	if (g_ascii_strcasecmp (entry->key, APOTHEKE_CONFIG_HIDE_IGNORED) == 0) {
 		gboolean hide;
 
-		hide = (gconf_value_get_int (entry->value) == 1);
+		hide = gconf_value_get_bool (entry->value);
 		if (view->priv->ad != NULL)
-			apotheke_directory_set_hide_ignored_files (view->priv->ad, hide);
+			apotheke_directory_create_file_list (view->priv->ad, hide);
 	}
 }
 
@@ -897,10 +907,11 @@ apotheke_view_load_uri (ApothekeView *view, const char *location)
 	if (priv->ad != NULL)
 		g_object_unref (priv->ad);
 
-	priv->ad = apotheke_directory_new (location);
-	apotheke_directory_create_file_list (priv->ad);
-
 	hide_ignored = gconf_client_get_bool (priv->config, APOTHEKE_CONFIG_HIDE_IGNORED, NULL);
+
+	priv->ad = apotheke_directory_new (location);
+	apotheke_directory_create_file_list (priv->ad, hide_ignored);
+
 	if (priv->ui_component) {
 		bonobo_ui_component_set_prop (priv->ui_component,
 					      "/commands/Hide Ignored Files",
@@ -908,7 +919,6 @@ apotheke_view_load_uri (ApothekeView *view, const char *location)
 					      hide_ignored ? "1" : "0",
 					      NULL);
 	}
-	apotheke_directory_set_hide_ignored_files (priv->ad, hide_ignored);
 
 	gtk_tree_view_set_model (GTK_TREE_VIEW (priv->tree_view), 
 				 GTK_TREE_MODEL (priv->ad));

@@ -13,7 +13,7 @@ enum {
 typedef void (* ApothekeCVSEntriesCallback) (char **entry, gpointer data);
 
 
-char** apotheke_cvs_entries_get_entry (char* uri, char* filename);
+GList* apotheke_cvs_entries_get_entries (gchar *uri);
 
 void  apotheke_cvs_entries_for_each (char *uri, ApothekeCVSEntriesCallback callback, gpointer data);
 

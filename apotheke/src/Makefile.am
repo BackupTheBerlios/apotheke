@@ -13,7 +13,6 @@ apotheke_view_SOURCES =        \
 	apotheke-view.c        \
 	apotheke-directory.h   \
 	apotheke-directory.c   \
-	apotheke-file.h	       \
 	apotheke-client-cvs.h  \
 	apotheke-client-cvs.c  \
 	apotheke-highlight-buffer.c \

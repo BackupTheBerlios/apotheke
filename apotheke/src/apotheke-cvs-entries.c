@@ -71,19 +71,20 @@ apotheke_cvs_entries_get_entry (char* uri, char* filename)
 	return strings;
 }
 
-void  
-apotheke_cvs_entries_for_each (char *uri, ApothekeCVSEntriesCallback callback, gpointer data)
+GList* 
+apotheke_cvs_entries_get_entries (gchar *uri)
 {
 	FILE *file;
 	gchar *entries_path;
 	gchar *buffer;
 	gchar **strings;
 	GnomeVFSResult result;
+	GList *list = NULL;
 
 	result = get_cvs_entries_path (uri, &entries_path);
 	if (result != GNOME_VFS_OK) {
 		g_print (_("Couldn't open CVS Entries file for: %s\n"), uri);
-		return;
+		return 0;
 	}
 
 	file = fopen (entries_path, "r");
@@ -93,11 +94,11 @@ apotheke_cvs_entries_for_each (char *uri, ApothekeCVSEntriesCallback callback, g
 		
 		strings = g_strsplit (buffer, "/", 6);
 
-		(*callback) (strings, data);
-
-		g_strfreev (strings);
+		list = g_list_prepend (list, strings);
 	}
 
 	g_free (buffer);
 	fclose (file);
+
+	return list;
 }

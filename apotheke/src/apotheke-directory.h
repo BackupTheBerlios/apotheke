@@ -3,8 +3,6 @@
 
 #include <gtk/gtkliststore.h>
 
-#include "apotheke-file.h"
-
 #define APOTHEKE_TYPE_DIRECTORY	    (apotheke_directory_get_type ())
 #define APOTHEKE_DIRECTORY(obj)	    (GTK_CHECK_CAST ((obj), APOTHEKE_TYPE_DIRECTORY, ApothekeDirectory))
 #define APOTHEKE_DIRECTORY_CLASS(klass)    (GTK_CHECK_CLASS_CAST ((klass), APOTHEKE_TYPE_DIRECTORY, ApothekeDirectoryClass))
@@ -17,15 +15,31 @@ typedef struct _ApothekeDirectoryPrivate ApothekeDirectoryPrivate;
 
 enum {
 	AD_COL_FILEICON,
+	AD_COL_DIRECTORY,
 	AD_COL_FILENAME,
 	AD_COL_VERSION,
 	AD_COL_STATUS,
+	AD_COL_STATUS_STR,
 	AD_COL_ATTRIBUTES,
 	AD_COL_TAG,
 	AD_COL_DATE,
-	AD_COL_FILESTRUCT,
 	AD_NUM_COLUMNS
 };
+
+typedef enum {
+	FILE_STATUS_NOT_IN_CVS,
+	FILE_STATUS_IGNORE,
+	FILE_STATUS_CVS_FILE,
+	FILE_STATUS_UP_TO_DATE,
+	FILE_STATUS_NEEDS_PATCH,
+	FILE_STATUS_ADDED,
+	FILE_STATUS_MODIFIED,
+	FILE_STATUS_REMOVED,
+	FILE_STATUS_NEEDS_CHECKOUT,
+	FILE_STATUS_NEEDS_MERGE,
+	FILE_STATUS_MISSING,
+	FILE_STATUS_CONFLICT
+} ApothekeFileStatus;
 
 struct _ApothekeDirectory {
 	GtkListStore     parent_object;
@@ -41,13 +55,8 @@ GType apotheke_directory_get_type (void);
 
 ApothekeDirectory* apotheke_directory_new (const gchar *dir);
 
-void apotheke_directory_create_file_list (ApothekeDirectory *dir);
+void apotheke_directory_create_file_list (ApothekeDirectory *dir, gboolean hide_ignored);
 
 gchar* apotheke_directory_get_uri (ApothekeDirectory *dir);
-
-void apotheke_directory_set_hide_ignored_files (ApothekeDirectory *dir, 
-						gboolean hide);
-
-void apotheke_directory_dump (ApothekeDirectory *dir);
 
 #endif /* __APOTHEKE_DIRECTORY_H__ */

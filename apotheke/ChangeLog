@@ -1,3 +1,14 @@
+2002-11-28  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-directory.c: Added new mtime column, which is used
+	to sort the view by date.
+	(apply_cvs_status): Obtain the date string with ctime (shouldn't
+	this return the date in the current locale format?), set to Dummy
+	Timestamp for added files.
+
+	* src/apotheke-view.c (set_up_tree_view): Use a separate sort id
+	to define which model column is used for sorting. 
+
 2002-11-26  Jens Finke  <jens@triq.net>
 
 	* src/apotheke-directory.c (apotheke_directory_construct): Setup

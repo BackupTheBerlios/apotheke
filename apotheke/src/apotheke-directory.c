@@ -94,7 +94,8 @@ apotheke_directory_construct (ApothekeDirectory *ad, const gchar *uri)
 		G_TYPE_STRING,   /* AD_COL_STATUS_STR */
 		G_TYPE_STRING,   /* AD_COL_ATTRIBUTES */
 		G_TYPE_STRING,   /* AD_COL_TAG */
-		G_TYPE_STRING    /* AD_COL_DATE */
+		G_TYPE_STRING,   /* AD_COL_DATE */
+		G_TYPE_LONG,     /* AD_COL_MTIME */
 	};
 
 	gtk_list_store_set_column_types  (GTK_LIST_STORE (ad),
@@ -173,8 +174,6 @@ apotheke_sort_func (GtkTreeModel *model,
 	gboolean b_is_directory;
 	char *a_name;
 	char *b_name;
-
-	g_print ("sortable func\n");
 
 	gtk_tree_model_get (model, a, 
 			    AD_COL_FILENAME, &a_name, 
@@ -353,7 +352,7 @@ apply_cvs_status (ApothekeDirectory *ad, GtkTreeIter *iter, time_t mtime, GList 
 {
 	char **entry;
 	char *filename;
-	time_t  cvs_time_t;
+	time_t  cvs_time_t = 0;
 	struct tm tm_entry;
 	ApothekeFileStatus status;
 	gboolean is_directory;
@@ -403,6 +402,8 @@ apply_cvs_status (ApothekeDirectory *ad, GtkTreeIter *iter, time_t mtime, GList 
 		else {
 			status = FILE_STATUS_UP_TO_DATE;
 		}		
+
+		
 	}
 	
 	/* Second step: fill the rest of the attributes. */
@@ -421,11 +422,15 @@ apply_cvs_status (ApothekeDirectory *ad, GtkTreeIter *iter, time_t mtime, GList 
 	}
 	
 	/* set date attribute */
-	if (entry[CVS_ENTRIES_DATE][0] != '\0' &&
-	    (status == FILE_STATUS_MODIFIED ||
-	     status == FILE_STATUS_UP_TO_DATE))
-	{
-		cvs_date = entry[CVS_ENTRIES_DATE];
+	if (entry[CVS_ENTRIES_DATE][0] != '\0') {
+		if (status == FILE_STATUS_MODIFIED ||
+		    status == FILE_STATUS_UP_TO_DATE)
+		{
+			cvs_date = ctime (&cvs_time_t);
+		}
+		else if (status == FILE_STATUS_ADDED) {
+			cvs_date = _("Dummy Timestamp");
+		}
 	}
 	
 	/* set option attribute. */
@@ -448,6 +453,7 @@ apply_cvs_status (ApothekeDirectory *ad, GtkTreeIter *iter, time_t mtime, GList 
 			    AD_COL_ATTRIBUTES, cvs_option,
 			    AD_COL_TAG, cvs_tag,
 			    AD_COL_DATE, cvs_date,
+			    AD_COL_MTIME, (long) cvs_time_t,
 			    -1);
 
 	/* clean up */

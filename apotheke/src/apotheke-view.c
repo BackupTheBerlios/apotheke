@@ -98,7 +98,7 @@ apotheke_view_class_init (ApothekeViewClass *klass)
         gobject_class->finalize = apotheke_view_finalize;
 }
 
-#define CREATE_COLUMN(id, align, min_width, source_id)       \
+#define CREATE_COLUMN(id, align, min_width, source_id, sort_id)       \
         cell = gtk_cell_renderer_text_new (); \
 	g_object_set (G_OBJECT (cell),        \
 		      "xalign", align,        \
@@ -112,7 +112,7 @@ apotheke_view_class_init (ApothekeViewClass *klass)
         if (min_width > -1)                                       \
                 gtk_tree_view_column_set_min_width (column, min_width); \
         gtk_tree_view_column_set_resizable (column, TRUE); \
-        gtk_tree_view_column_set_sort_column_id (column, source_id); \
+        gtk_tree_view_column_set_sort_column_id (column, sort_id); \
         gtk_tree_view_append_column (tree_view, column)
         
 
@@ -164,11 +164,11 @@ set_up_tree_view (GtkTreeView *tree_view)
         gtk_tree_view_column_set_resizable (column, TRUE);
 	gtk_tree_view_append_column (tree_view, column);
 
-	CREATE_COLUMN (VIEW_COL_REVISION, 0.01, 100, AD_COL_VERSION);
-	CREATE_COLUMN (VIEW_COL_STATUS, 0.01, 100, AD_COL_STATUS_STR);
-	CREATE_COLUMN (VIEW_COL_OPTION, 0.5, 100, AD_COL_ATTRIBUTES);
-	CREATE_COLUMN (VIEW_COL_TAG, 0.01, 100, AD_COL_TAG);
-	CREATE_COLUMN (VIEW_COL_DATE, 0.01, 100, AD_COL_DATE);
+	CREATE_COLUMN (VIEW_COL_REVISION, 0.01, 100, AD_COL_VERSION, AD_COL_VERSION);
+	CREATE_COLUMN (VIEW_COL_STATUS, 0.01, 100, AD_COL_STATUS_STR, AD_COL_STATUS_STR);
+	CREATE_COLUMN (VIEW_COL_OPTION, 0.5, 100, AD_COL_ATTRIBUTES, AD_COL_ATTRIBUTES);
+	CREATE_COLUMN (VIEW_COL_TAG, 0.01, 100, AD_COL_TAG, AD_COL_TAG);
+	CREATE_COLUMN (VIEW_COL_DATE, 0.01, 100, AD_COL_DATE, AD_COL_MTIME);
 }
 
 

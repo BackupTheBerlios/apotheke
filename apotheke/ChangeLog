@@ -1,5 +1,18 @@
 2002-12-30  Jens Finke  <jens@triq.net>
 
+	Implemented file monitoring and status updates for files which are
+	modified by external programs.
+
+	* src/apotheke-directory.c (apotheke_directory_dispose): Free
+	monitor handles.
+	(change_entry_status),
+	(get_iter_by_filename),
+	(dir_monitor_callback),
+	(entries_monitor_callback), 
+	(add_monitors): New functions.
+
+2002-12-30  Jens Finke  <jens@triq.net>
+
 	* src/apotheke-cvs-entries.c (apotheke_cvs_entries_get_entries):
 	Overread lines in CVS/Entries with only a 'D'.
 	

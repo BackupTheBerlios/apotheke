@@ -28,7 +28,8 @@ struct _ApothekeDirectoryPrivate {
 	gboolean  hide_ignored_files;
 
 #ifdef HAVE_LIBFAM
-	GnomeVFSMonitorHandle *monitor;
+	GnomeVFSMonitorHandle *dir_monitor;
+	GnomeVFSMonitorHandle *entries_monitor;
 #endif
 };
 
@@ -64,7 +65,8 @@ apotheke_directory_instance_init (ApothekeDirectory *dir)
 	priv->uri = NULL;
 	priv->hide_ignored_files = FALSE;
 #ifdef HAVE_LIBFAM
-	priv->monitor = NULL;
+	priv->dir_monitor = NULL;
+	priv->entries_monitor = NULL;
 #endif
 }
 
@@ -139,13 +141,18 @@ static void
 apotheke_directory_dispose (GObject *object)
 {
 	ApothekeDirectory *ad;
+	ApothekeDirectoryPrivate *priv;
 
 	ad = APOTHEKE_DIRECTORY (object);
+	priv = ad->priv;
 
 #ifdef HAVE_LIBFAM
-	if (ad->priv->monitor)
-		gnome_vfs_monitor_cancel (ad->priv->monitor);
-	ad->priv->monitor = NULL;
+	if (priv->dir_monitor)
+		gnome_vfs_monitor_cancel (priv->dir_monitor);
+	if (priv->entries_monitor)
+		gnome_vfs_monitor_cancel (priv->entries_monitor);
+	priv->dir_monitor = NULL;
+	priv->entries_monitor = NULL;
 #endif
 }
 
@@ -195,29 +202,172 @@ apotheke_sort_func (GtkTreeModel *model,
 	}
 }
 
-#ifdef HAVE_LIBFAM
 static void
-monitor_callback (GnomeVFSMonitorHandle *handle,
-		  const gchar *monitor_uri,
-		  const gchar *info_uri,
-		  GnomeVFSMonitorEventType event_type,
-		  gpointer user_data)
+change_entry_status (ApothekeDirectory *ad, GtkTreeIter *iter, ApothekeFileStatus status)
 {
-#if 0
-	ApothekeDirectory *ad;
-	ApothekeFile *af;
+	char *cvs_status;
+	gboolean is_directory;
 
+	gtk_tree_model_get (GTK_TREE_MODEL (ad), iter,
+			    AD_COL_DIRECTORY, &is_directory,
+			    -1);
+	get_status_text (status, is_directory, &cvs_status);
+
+	gtk_list_store_set (GTK_LIST_STORE (ad), iter,
+			    AD_COL_FILEICON, get_file_icon (status, is_directory),
+			    AD_COL_STATUS, (int) status,
+			    AD_COL_STATUS_STR, cvs_status,
+			    -1);
+}
+
+#ifdef HAVE_LIBFAM
+static gboolean
+get_iter_by_filename (ApothekeDirectory *ad, const char *file_uri, GtkTreeIter *iter)
+{
+	char *filename;
+	char *path;
+	gboolean success = FALSE;
+
+	path = gnome_vfs_get_local_path_from_uri (file_uri);
+	filename = g_path_get_basename (path);
+	if (!g_utf8_validate (filename, -1, NULL)) {
+		char *tmp;
+		tmp = g_filename_to_utf8 (filename, -1, NULL, NULL, NULL);
+		g_free (filename);
+		filename = tmp;
+	}
+
+	if (!gtk_tree_model_get_iter_first (GTK_TREE_MODEL (ad), iter)) {
+		return FALSE;
+	}
+
+	do {
+		char *entry_filename;
+
+		gtk_tree_model_get (GTK_TREE_MODEL (ad), iter, 
+				    AD_COL_FILENAME, &entry_filename,
+				    -1);
+		g_print ("entry_filename: %s\n", entry_filename);
+		if (g_utf8_collate (entry_filename, filename) == 0) {
+			success = TRUE;
+		}
+	} while (!success && gtk_tree_model_iter_next (GTK_TREE_MODEL (ad), iter));
+
+	g_free (filename);
+	g_free (path);
+	
+	return success;
+}
+
+
+static void
+dir_monitor_callback (GnomeVFSMonitorHandle *handle,
+		      const gchar *monitor_uri,
+		      const gchar *info_uri,
+		      GnomeVFSMonitorEventType event_type,
+		      gpointer user_data)
+{
+	ApothekeDirectory *ad;
+	GtkTreeIter iter;
+	ApothekeFileStatus status;
+
+	g_return_if_fail (APOTHEKE_IS_DIRECTORY (user_data));
+	
 	ad = APOTHEKE_DIRECTORY (user_data);
+
+	g_print ("dir monitor callback: ");
+
+	switch (event_type) {
+	case GNOME_VFS_MONITOR_EVENT_CHANGED:
+		g_print ("Changed: %s\n", info_uri);
+		if (get_iter_by_filename (ad, info_uri, &iter)) {
+			gtk_tree_model_get (GTK_TREE_MODEL (ad), &iter, 
+					    AD_COL_STATUS, &status,
+					    -1);
+			if (status == FILE_STATUS_UP_TO_DATE) {
+				/* in all other cases the state should be preserved. */
+				change_entry_status (ad, &iter, FILE_STATUS_MODIFIED);
+			}
+		}
+		break;
+
+	case GNOME_VFS_MONITOR_EVENT_DELETED:
+		g_print ("Deleted: %s  %s\n", monitor_uri, info_uri);
+		if (get_iter_by_filename (ad, info_uri, &iter)) {
+			gtk_tree_model_get (GTK_TREE_MODEL (ad), &iter, 
+					    AD_COL_STATUS, &status,
+					    -1);
+			if (status > FILE_STATUS_CVS_FILE) {
+				change_entry_status (ad, &iter, FILE_STATUS_MISSING);
+			}
+			else {
+				gtk_list_store_remove (GTK_LIST_STORE (ad), &iter);
+			}
+		}
+		break;
+
+	case GNOME_VFS_MONITOR_EVENT_CREATED:
+		g_print ("Created: %s  %s\n", monitor_uri, info_uri);
+		if (get_iter_by_filename (ad, info_uri, &iter)) {
+			gtk_tree_model_get (GTK_TREE_MODEL (ad), &iter, 
+					    AD_COL_STATUS, &status,
+					    -1);
+			if (status > FILE_STATUS_CVS_FILE) {
+				change_entry_status (ad, &iter, FILE_STATUS_MODIFIED);
+			}
+		}
+		else {
+			char *path;
+			char *filename;
+			char *status_str;
+			
+			path = gnome_vfs_get_local_path_from_uri (info_uri);
+			filename = g_path_get_basename (path);
+			if (!g_utf8_validate (filename, -1, NULL)) {
+				char *tmp;
+				tmp = g_filename_to_utf8 (filename, -1, NULL, NULL, NULL);
+				g_free (filename);
+				filename = tmp;
+			}
+			
+			/* FIXME: what if the file is ignored? */
+			get_status_text (FILE_STATUS_NOT_IN_CVS, FALSE, &status_str);
+			gtk_list_store_append (GTK_LIST_STORE (ad), &iter);
+			gtk_list_store_set (GTK_LIST_STORE (ad), &iter,
+					    AD_COL_DIRECTORY, FALSE,
+					    AD_COL_FILENAME, filename,
+					    AD_COL_STATUS, (int) FILE_STATUS_NOT_IN_CVS,
+					    AD_COL_STATUS_STR, status_str,
+					    -1);
+			g_free (path);
+			g_free (filename);
+		}
+		break;
+
+	default:
+		g_print ("ignored event.\n");
+		break;
+	}
+}
+
+static void
+entries_monitor_callback (GnomeVFSMonitorHandle *handle,
+		      const gchar *monitor_uri,
+		      const gchar *info_uri,
+		      GnomeVFSMonitorEventType event_type,
+		      gpointer user_data)
+{
+	ApothekeDirectory *ad;
+
+	g_return_if_fail (APOTHEKE_IS_DIRECTORY (user_data));
+	
+	ad = APOTHEKE_DIRECTORY (user_data);
+
+	g_print ("entries monitor callback: ");
 
 	switch (event_type) {
 	case GNOME_VFS_MONITOR_EVENT_CHANGED:
 		g_print ("Changed: %s  %s\n", monitor_uri, info_uri);
-		/* FIXME: these functions do not exsist yet. */
-		af = get_apotheke_file_from_uri (ad, info_uri);
-		if (af->type == FILE_TYPE_CVS) {
-			af->status = FILE_STATUS_MODIFIED;
-			apply_apotheke_file_to_model (ad, af);
-		}
 		break;
 	case GNOME_VFS_MONITOR_EVENT_DELETED:
 		g_print ("Deleted: %s  %s\n", monitor_uri, info_uri);
@@ -226,8 +376,56 @@ monitor_callback (GnomeVFSMonitorHandle *handle,
 		g_print ("Created: %s  %s\n", monitor_uri, info_uri);
 		break;
 	default:
+		g_print ("ignored event.\n");
+		break;
 	}
-#endif
+}
+
+static void
+add_monitors (ApothekeDirectory *dir)
+{
+	ApothekeDirectoryPrivate *priv;
+	char *entries_uri;
+	GnomeVFSFileInfo *info;
+	GnomeVFSResult result; 
+
+	priv = dir->priv;
+
+	if (priv->dir_monitor != NULL) {
+		gnome_vfs_monitor_cancel (priv->dir_monitor);
+		priv->dir_monitor = NULL;
+	}
+
+	if (priv->entries_monitor != NULL) {
+		gnome_vfs_monitor_cancel (priv->entries_monitor);
+		priv->entries_monitor = NULL;
+	}
+
+	/* add monitor callback for this directory */
+	gnome_vfs_monitor_add (&priv->dir_monitor, 
+			       priv->uri,
+			       GNOME_VFS_MONITOR_DIRECTORY,
+			       dir_monitor_callback,
+			       dir);
+
+	
+	entries_uri = g_build_filename (priv->uri, "CVS", "Entries", NULL);
+
+	info = gnome_vfs_file_info_new ();
+	result = gnome_vfs_get_file_info (entries_uri, info, GNOME_VFS_FILE_INFO_DEFAULT);
+
+	if (result == GNOME_VFS_OK && info->type == GNOME_VFS_FILE_TYPE_REGULAR) {
+		gnome_vfs_monitor_add (&priv->entries_monitor,
+				       entries_uri,
+				       GNOME_VFS_MONITOR_FILE,
+				       entries_monitor_callback,
+				       dir);
+
+	}
+	
+	g_free (entries_uri);
+	gnome_vfs_file_info_unref (info);
+
 }
 #endif
 
@@ -257,7 +455,7 @@ create_file_list (ApothekeDirectory *ad, GList **cvs_entries,
 		return;
 	}
 	
-	/* filter ignored files and determien cvs status */
+	/* filter ignored files and determine cvs status */
 	for (it = dir_list; it != NULL; it = it->next) {
 		GnomeVFSFileInfo *info;
 		GtkTreeIter iter;
@@ -520,6 +718,7 @@ apotheke_directory_get_ignore_pattern_list (ApothekeDirectory *dir)
 	
 	while (fgets (buffer, 256, file)) {
 		stripped = g_strdup (g_strstrip (buffer));
+		/* FIXME: Use from_locale_to_utf8 */
 		utf8 = g_convert (stripped, -1, "Latin1", "UTF-8", NULL, NULL, NULL);
 		g_print ("ignore pattern: %s\n", utf8);
 		if (utf8 != 0) {
@@ -659,6 +858,10 @@ apotheke_directory_create_file_list (ApothekeDirectory *dir, gboolean hide_ignor
 	for (it = cvs_entries; it != NULL; it = it->next) 
 		g_strfreev ((gchar**)it->data);
 	g_list_free (cvs_entries);
+
+#ifdef HAVE_LIBFAM
+	add_monitors (dir);
+#endif
 }
     
 gchar* 

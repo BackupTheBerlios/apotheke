@@ -856,7 +856,7 @@ apotheke_directory_get_ignore_pattern_list (ApothekeDirectory *dir)
 	if (result != GNOME_VFS_OK || info->type != GNOME_VFS_FILE_TYPE_REGULAR) {
 		g_print (_("No .cvsignore file found.\n"));
 		g_free (ignore_uri); 
-		return;
+		return pattern_list;
 	}
 	gnome_vfs_file_info_unref (info);
 
@@ -864,7 +864,7 @@ apotheke_directory_get_ignore_pattern_list (ApothekeDirectory *dir)
 	g_print ("ignore_file: %s\n", ignore_file);
 	if (ignore_file == NULL) {
 		g_free (ignore_uri);
-		return;
+		return pattern_list;
 	}
 
 	file = fopen (ignore_file, "r");

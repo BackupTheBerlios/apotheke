@@ -1,3 +1,8 @@
+2003-02-10  Haavard Wigtil <havardw@stud.ntnu.no>
+
+       * src/apotheke-directory.c (apotheke_directory_get_ignore_pattern_list):
+         Return (empty) list if .cvsignore isn't found.
+
 2003-01-05  Jens Finke  <jens@triq.net>
 
 	* src/apotheke-directory.c (get_status_text): Removed.

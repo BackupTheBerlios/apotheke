@@ -1,3 +1,12 @@
+2002-11-07  Jens Finke <jens@triq.net>
+
+	* apotheke.spec.in: Added spec file, created by Christian Schaller
+	<Christian@linuxpower.org>.
+
+	* configure.in: Added apotheke.spec to output files.
+
+	* Makefile.am: Added spec file to EXTRA_DIST.
+
 2002-11-01  Jens Finke <jens@triq.net>
 
 	Finished commit and update dialogs. Some minor polishing and

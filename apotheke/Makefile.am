@@ -4,7 +4,9 @@ EXTRA_DIST =  \
 	$(schema_DATA) \
         intltool-extract.in \
         intltool-merge.in   \
-        intltool-update.in
+        intltool-update.in  \
+	apotheke.spec.in    \
+	apotheke.spec
 
 schemadir = $(sysconfdir)/gconf/schemas
 schema_DATA = apotheke.schemas

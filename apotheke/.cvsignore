@@ -31,3 +31,5 @@ stamp-h
 stamp-h.in 
 doc
 intltool-*
+apotheke.spec
+*~

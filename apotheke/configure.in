@@ -71,4 +71,5 @@ AC_OUTPUT([
 Makefile
 src/Makefile
 icons/Makefile
-po/Makefile.in])
+po/Makefile.in
+apotheke.spec])

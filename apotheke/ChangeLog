@@ -1,3 +1,25 @@
+2002-05-23  Jens Finke <jens@triq.net>
+
+	* src/apotheke-directory.c (apotheke_directory_finalize): No more
+	ignored_file_list.
+	(get_status_text),
+	(get_file_icon),
+	(dump_file),
+	(apotheke_sort_func),
+	(apotheke_directory_create_initial_file_list),
+	(apotheke_directory_apply_cvs_status): Adapt to new ApothekeFile
+	type/status distinction.
+	(create_initial_ignore_list): Removed.
+	(check_for_ignore_status): New function.
+	(apotheke_directory_apply_ignore_list): Don't use separate ignore
+	list anymore.
+	(add_file_to_tree_if_ignored): New function.
+	(show_ignored_files): No more ignored_file_list.
+	(hide_ignored_files): Don't manage ignored_file_list.
+
+	* src/apotheke-file.h: Make distinction between file type and it's
+	CVS status.
+
 2002-05-13  Jens Finke <jens@triq.net>
 
 	* AUTHORS: New file.

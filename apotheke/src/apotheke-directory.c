@@ -25,7 +25,6 @@
 struct _ApothekeDirectoryPrivate {
 	gchar     *uri;
 	GData     *file_list;
-	GData     *ignored_file_list;
 	gboolean  hide_ignored_files;
 };
 
@@ -52,10 +51,8 @@ apotheke_directory_instance_init (ApothekeDirectory *dir)
 	dir->priv = priv;
 	priv->uri = NULL;
 	priv->file_list = NULL;
-	priv->ignored_file_list = NULL;
 	priv->hide_ignored_files = FALSE;
 	g_datalist_init (&priv->file_list);
-	g_datalist_init (&priv->ignored_file_list);
 }
 
 static void 
@@ -130,10 +127,6 @@ apotheke_directory_finalize (GObject *object)
 		g_datalist_clear (&ad->priv->file_list);
 	ad->priv->file_list = NULL;
 
-	if (ad->priv->ignored_file_list)
-		g_datalist_clear (&ad->priv->ignored_file_list);
-	ad->priv->ignored_file_list = NULL;
-
 	g_free (ad->priv);
 }
 
@@ -159,13 +152,13 @@ apotheke_sort_func (GtkTreeModel *model,
 		return 1;
 	}
 	else {
-		if (af_a->status < FILE_STATUS_CVS_FILE &&
-		    af_b->status >= FILE_STATUS_CVS_FILE)
+		if (af_a->type != FILE_TYPE_CVS &&
+		    af_b->type == FILE_TYPE_CVS)
 		{
 			return -1;
 		}
-		if (af_b->status < FILE_STATUS_CVS_FILE &&
-		    af_a->status >= FILE_STATUS_CVS_FILE)
+		if (af_b->status == FILE_TYPE_CVS &&
+		    af_a->status >= FILE_TYPE_CVS)
 		{
 			return 1;
 		}
@@ -220,7 +213,8 @@ apotheke_directory_create_initial_file_list (ApothekeDirectory *dir)
 		af->quark = g_quark_from_string (info->name);
 		af->directory = (info->type == GNOME_VFS_FILE_TYPE_DIRECTORY);
 		af->mtime = info->mtime;
-		af->status = FILE_STATUS_NOT_IN_CVS;
+		af->type = FILE_TYPE_NOT_IN_CVS;
+		af->status = FILE_STATUS_NONE;
 		
 		gnome_vfs_file_info_unref (info);
 
@@ -279,19 +273,19 @@ apotheke_directory_apply_cvs_status (ApothekeDirectory *dir)
 	
 	file = fopen (entries_file, "r");
 	buffer = g_new0 (gchar, 256);
-
+	
 	while (fgets (buffer, 256, file)) {
-
+		
 		strings = g_strsplit (buffer, "/", 6);
 		
 		if (strings[CVS_ENTRIES_FILENAME] == NULL) {
 			g_strfreev (strings);
 			continue;
 		}
-
+		
 		af = (ApothekeFile*) g_datalist_get_data (&priv->file_list, 
 							  strings[CVS_ENTRIES_FILENAME]);
-
+		
 	        /* To make the code clearer we have two steps here: First we check
 		 * which status the files has. Then on base of the status we fill in
 		 * the rest of the information.
@@ -303,28 +297,34 @@ apotheke_directory_apply_cvs_status (ApothekeDirectory *dir)
 			af->filename = g_filename_to_utf8 (strings[CVS_ENTRIES_FILENAME], 
 							   -1, NULL, NULL, NULL);
 			af->quark = g_quark_from_string (strings[CVS_ENTRIES_FILENAME]);
-
+			af->type = FILE_TYPE_CVS;
+			
 			if (strings[CVS_ENTRIES_REVISION][0] == '-') {
 				af->status = FILE_STATUS_REMOVED;
 			}
 			else {
 				af->status = FILE_STATUS_MISSING;
 			}
-
+			
 			g_datalist_id_set_data (&priv->file_list, af->quark, af);
 		}
 		
 		if (strings[CVS_ENTRIES_DIR][0] == 'D') {
 			if (af->directory) {
-				af->status = FILE_STATUS_CVS_FILE;
+				af->type = FILE_TYPE_CVS;
+				af->status = FILE_STATUS_UP_TO_DATE;
 			}
 			else {
-				af->status = FILE_STATUS_UNKNOWN;
+				af->type = FILE_TYPE_UNKNOWN;
+				af->status = FILE_STATUS_NONE;
 				g_warning (_("Oops, directory %s has no D flag in CVS/Entries."),
 					   af->filename);
 			}
 		}
-		else if (af->status == FILE_STATUS_NOT_IN_CVS) {
+		else if (af->type == FILE_TYPE_NOT_IN_CVS) {
+			/* these are all other cases */
+			af->type = FILE_TYPE_CVS;
+			
 			/* NOTE: CVS stores UTC time, not localtime. */
 			strptime (strings[CVS_ENTRIES_DATE], "%a %h %e %T %Y", &tm_entry);
 			cvs_time_t = timegm (&tm_entry);
@@ -338,10 +338,10 @@ apotheke_directory_apply_cvs_status (ApothekeDirectory *dir)
 				}
 			}
 			else {
-				af->status = FILE_STATUS_CVS_FILE;
+				af->status = FILE_STATUS_UP_TO_DATE;
 			}		
 		}
-
+		
 		/* Second step: fill the rest of the attributes. */
 		af->cvs_revision = NULL;
 		af->cvs_date = NULL;
@@ -350,25 +350,28 @@ apotheke_directory_apply_cvs_status (ApothekeDirectory *dir)
 		
 		/* set revision attribute */
 		if (strings[CVS_ENTRIES_REVISION][0] != '\0' &&
+		    af->type == FILE_TYPE_CVS && 
 		    (af->status == FILE_STATUS_MODIFIED ||
-		     af->status == FILE_STATUS_CVS_FILE))
+		     af->status == FILE_STATUS_UP_TO_DATE))
 		{
 			af->cvs_revision = g_strdup (strings[CVS_ENTRIES_REVISION]);
 		}
 		else if (strings[CVS_ENTRIES_REVISION][0] != '\0' &&
+			 af->type == FILE_TYPE_CVS &&
 			 af->status == FILE_STATUS_REMOVED) 
 		{
 			af->cvs_revision = g_strdup (strings[CVS_ENTRIES_REVISION]+1);
 		}
-
+		
 		/* set date attribute */
 		if (strings[CVS_ENTRIES_DATE][0] != '\0' &&
+		    af->type == FILE_TYPE_CVS && 
 		    (af->status == FILE_STATUS_MODIFIED ||
-		     af->status == FILE_STATUS_CVS_FILE))
+		     af->status == FILE_STATUS_UP_TO_DATE))
 		{
 			af->cvs_date = g_strdup (strings[CVS_ENTRIES_DATE]);
 		}
-
+		
 		/* set option attribute. */
 		if (strings[CVS_ENTRIES_OPTION][0] != '\0') {
 			af->cvs_option = g_strdup (strings[CVS_ENTRIES_OPTION]);
@@ -378,7 +381,7 @@ apotheke_directory_apply_cvs_status (ApothekeDirectory *dir)
 		if (strings[CVS_ENTRIES_TAG][0] != '\0') {
 			af->cvs_tag = g_strdup (g_strstrip (strings[CVS_ENTRIES_TAG]+1));
 		}
-
+		
 		g_strfreev (strings);
 	}
 
@@ -389,13 +392,23 @@ apotheke_directory_apply_cvs_status (ApothekeDirectory *dir)
 }
 
 static void
-create_initial_ignore_list (GQuark key, ApothekeFile *af, GList **list)
+check_for_ignore_status (GQuark quark, gpointer data, gpointer data_user)
 {
-	g_print ("af->uri: %s\n", af->filename);
-	if (af->status == FILE_STATUS_NOT_IN_CVS)
-		*list = g_list_append (*list, af);
-}
+	GList *pattern_list;
+	GList *it;
+	ApothekeFile *af;
 
+	pattern_list = (GList*) data_user;
+	af = (ApothekeFile*) data;
+
+	for (it = pattern_list; (it != NULL && af->type != FILE_TYPE_IGNORE); it = it->next) 
+	{
+		if (g_pattern_match_string ((GPatternSpec*)it->data, af->filename)) {
+			af->type = FILE_TYPE_IGNORE;
+			af->status = FILE_STATUS_NONE;
+		}
+	}
+}
 
 void 
 apotheke_directory_apply_ignore_list (ApothekeDirectory *dir)
@@ -409,7 +422,7 @@ apotheke_directory_apply_ignore_list (ApothekeDirectory *dir)
 	gchar *utf8;
 	gchar *stripped;
 	GPatternSpec *pattern;
-	GList *unsafe_files;
+	GList *pattern_list = NULL;
 	GList *it;
 	GnomeVFSFileInfo *info;
 	GnomeVFSResult result;
@@ -434,14 +447,6 @@ apotheke_directory_apply_ignore_list (ApothekeDirectory *dir)
 		return;
 	}
 
-	/* To make this more efficient we create a sepearte list
-	 * for all possible ignorable files. 
-	 */
-	unsafe_files = NULL;
-	g_datalist_foreach (&priv->file_list,
-			    (GDataForeachFunc) create_initial_ignore_list,
-			    &unsafe_files);
-
 	file = fopen (ignore_file, "r");
 	buffer = g_new0 (gchar, 256);
 	
@@ -452,81 +457,74 @@ apotheke_directory_apply_ignore_list (ApothekeDirectory *dir)
 		g_free (utf8);
 		g_free (stripped);
 
-		for (it = unsafe_files; it != NULL; ) {
-			af = (ApothekeFile*) it->data;
-			
-			if (g_pattern_match_string (pattern, af->filename)) {
-				GList *tmp;
-				af->status = FILE_STATUS_IGNORE;
-				
-				tmp = it->next;
-				unsafe_files = g_list_delete_link (unsafe_files, it);
-				it = tmp;
-			}
-			else {
-				it = it->next;
-			}
-		}
-
-		g_pattern_spec_free (pattern);
+		pattern_list = g_list_append (pattern_list, pattern);
 	}
 
 	fclose (file);
-	g_list_free (unsafe_files);
 	g_free (buffer);
 	g_free (ignore_file);
 	g_free (ignore_uri);
-}
 
+	g_datalist_foreach (&priv->file_list, 
+			    check_for_ignore_status, 
+			    pattern_list);
+
+	for (it = pattern_list; it != NULL; it = it->next)
+		g_pattern_spec_free ((GPatternSpec*)it->data);
+}
 
 static void
 get_status_text (ApothekeFile *af, gchar **status_str)
 {
 	*status_str = "";
 
-	switch (af->status) {
-	case FILE_STATUS_UNKNOWN:
+	switch (af->type) {
+	case FILE_TYPE_UNKNOWN:
 		*status_str = _("Unknown");
 		break;
-	case FILE_STATUS_NOT_IN_CVS:
+	case FILE_TYPE_NOT_IN_CVS:
 		*status_str = _("Not in CVS");
 		break;
-	case FILE_STATUS_CVS_FILE:
-		if (af->directory)
-			*status_str = _("Directory");
-		else 
-			*status_str = _("File");
-		break;
-	case FILE_STATUS_IGNORE:
+	case FILE_TYPE_IGNORE:
 		*status_str = _("Ignore");
 		break;
-	case FILE_STATUS_UP_TO_DATE:
-		*status_str = _("Up-To-Date");
-		break;
-	case FILE_STATUS_NEEDS_PATCH:
-		*status_str = _("Needs Patch");
-		break;
-	case FILE_STATUS_ADDED:
-		*status_str = _("Added");
-		break;
-	case FILE_STATUS_MODIFIED:
-		*status_str = _("Modified");
-		break;
-	case FILE_STATUS_REMOVED:
-		*status_str = _("Removed");
-		break;
-	case FILE_STATUS_NEEDS_CHECKOUT:
-		*status_str = _("Needs Checkout");
-		break;
-	case FILE_STATUS_NEEDS_MERGE:
-		*status_str = _("Needs Merge");
-		break;
-	case FILE_STATUS_MISSING:
-		*status_str = _("Missing");
-		break;
-	case FILE_STATUS_CONFLICT:
-		*status_str = _("Conflict");
-		break;
+	case FILE_TYPE_CVS:
+		if (af->directory)
+			*status_str = _("Directory");
+		else {
+			switch (af->status) {
+			case FILE_STATUS_NONE:
+				*status_str = _("None");
+				break;
+			case FILE_STATUS_UP_TO_DATE:
+				*status_str = _("Up-To-Date");
+				break;
+			case FILE_STATUS_NEEDS_PATCH:
+				*status_str = _("Needs Patch");
+				break;
+			case FILE_STATUS_ADDED:
+				*status_str = _("Added");
+				break;
+			case FILE_STATUS_MODIFIED:
+				*status_str = _("Modified");
+				break;
+			case FILE_STATUS_REMOVED:
+				*status_str = _("Removed");
+				break;
+			case FILE_STATUS_NEEDS_CHECKOUT:
+				*status_str = _("Needs Checkout");
+				break;
+			case FILE_STATUS_NEEDS_MERGE:
+				*status_str = _("Needs Merge");
+				break;
+			case FILE_STATUS_MISSING:
+				*status_str = _("Missing");
+				break;
+			case FILE_STATUS_CONFLICT:
+				*status_str = _("Conflict");
+				break;
+			}
+		}
 	}
 }
 
@@ -539,12 +537,13 @@ get_file_icon (ApothekeFile *file)
 	double factor;
 
 	if (file == NULL) return NULL;
+	if (file->type != FILE_TYPE_CVS) return NULL;
 
 	if (file->directory)
 		pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-directory.png", NULL);
 	else {
 		switch (file->status) {
-		case FILE_STATUS_CVS_FILE:
+		case FILE_STATUS_UP_TO_DATE:
 			pixbuf = gdk_pixbuf_new_from_file (DATADIR "/pixmaps/apotheke/cvs-file.png", NULL);
 			break;
 		case FILE_STATUS_MODIFIED:
@@ -587,11 +586,8 @@ add_file_to_tree (GQuark key, gpointer data, gpointer user_data)
 	af = (ApothekeFile*) data;
 
 	if (dir->priv->hide_ignored_files &&
-	    af->status == FILE_STATUS_IGNORE) 
+	    af->type == FILE_TYPE_IGNORE) 
 	{
-		g_datalist_id_set_data (&(dir->priv->ignored_file_list), 
-					af->quark,
-					af);
 		return;
 	}
 	
@@ -631,15 +627,23 @@ apotheke_directory_create_file_list (ApothekeDirectory *dir)
 }
 
 static void
+add_file_to_tree_if_ignored (GQuark key, gpointer data, gpointer user_data)
+{
+	ApothekeFile *af;
+
+        af = (ApothekeFile*) data;
+	if (af->type == FILE_TYPE_IGNORE)
+		add_file_to_tree (key, data, user_data);
+}
+
+static void
 show_ignored_files (ApothekeDirectory *dir) 
 {
 	g_assert (dir->priv->hide_ignored_files == FALSE);
 
-	g_datalist_foreach (&dir->priv->ignored_file_list, 
-			    add_file_to_tree,
+	g_datalist_foreach (&dir->priv->file_list, 
+			    add_file_to_tree_if_ignored,
 			    dir);
-
-	g_datalist_clear (&dir->priv->ignored_file_list);
 }
 
 static void
@@ -651,9 +655,7 @@ hide_ignored_files (ApothekeDirectory *dir)
 	
 	g_assert (dir->priv->hide_ignored_files == TRUE);
 
-	valid = gtk_tree_model_get_iter_from_string (GTK_TREE_MODEL (dir), 
-						     &iter, 
-						     "0");
+	valid = gtk_tree_model_get_iter_root (GTK_TREE_MODEL (dir), &iter);
 	if (!valid) return;
 
 	do {
@@ -662,12 +664,8 @@ hide_ignored_files (ApothekeDirectory *dir)
 				    AD_COL_FILESTRUCT,
 				    &af, -1);
 
-		if (af->status == FILE_STATUS_IGNORE) {
-			gtk_list_store_remove (GTK_LIST_STORE (dir),
-					       &iter);
-			g_datalist_id_set_data (&dir->priv->ignored_file_list,
-						af->quark,
-						af);
+		if (af->type == FILE_TYPE_IGNORE) {
+			gtk_list_store_remove (GTK_LIST_STORE (dir), &iter);
 		}
 		else {
 			valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (dir),
@@ -712,44 +710,43 @@ dump_file (GQuark key, gpointer data, gpointer user_data)
 	af = (ApothekeFile*) data;
 
 	if (!af->directory) {
-		switch (af->status) {
-		case FILE_STATUS_UNKNOWN:
+		switch (af->type) {
+		case FILE_TYPE_UNKNOWN:
 			flag = "&";
 			status = "Unknown";
 			break;
-		case FILE_STATUS_NOT_IN_CVS:
+		case FILE_TYPE_NOT_IN_CVS:
 			flag = "?";
 			status = "Not in CVS";
 			break;
-		case FILE_STATUS_CVS_FILE:
-			flag = "?";
-			status = "File";
-			break;
-		case FILE_STATUS_IGNORE:
+		case FILE_TYPE_IGNORE:
 			flag = "I";
 			status = "Ignore";
 			break;
-		case FILE_STATUS_UP_TO_DATE:
-			status = "Up-To-Date";
-			break;
-		case FILE_STATUS_NEEDS_PATCH:
-			status = "Needs Patch";
-			break;
-		case FILE_STATUS_ADDED:
-			status = "Added";
-			break;
-		case FILE_STATUS_MODIFIED:
-			status = "Modified";
-			break;
-		case FILE_STATUS_REMOVED:
-			status = "Removed";
-			break;
-		case FILE_STATUS_NEEDS_CHECKOUT:
-			status = "Needs Checkout";
-			break;
-		case FILE_STATUS_NEEDS_MERGE:
-			status = "Needs Merge";
-			break;
+		case FILE_TYPE_CVS:
+			switch (af->status) {
+			case FILE_STATUS_UP_TO_DATE:
+				status = "Up-To-Date";
+				break;
+			case FILE_STATUS_NEEDS_PATCH:
+				status = "Needs Patch";
+				break;
+			case FILE_STATUS_ADDED:
+				status = "Added";
+				break;
+			case FILE_STATUS_MODIFIED:
+				status = "Modified";
+				break;
+			case FILE_STATUS_REMOVED:
+				status = "Removed";
+				break;
+			case FILE_STATUS_NEEDS_CHECKOUT:
+				status = "Needs Checkout";
+				break;
+			case FILE_STATUS_NEEDS_MERGE:
+				status = "Needs Merge";
+				break;
+			}
 		}
 	}
 		

@@ -7,10 +7,14 @@
 typedef struct _ApothekeFile ApothekeFile;
 
 typedef enum {
-	FILE_STATUS_UNKNOWN,
-	FILE_STATUS_NOT_IN_CVS,
-	FILE_STATUS_CVS_FILE,
-	FILE_STATUS_IGNORE,
+	FILE_TYPE_UNKNOWN,
+	FILE_TYPE_NOT_IN_CVS,
+	FILE_TYPE_IGNORE,
+	FILE_TYPE_CVS
+} ApothekeFileType;
+
+typedef enum {
+	FILE_STATUS_NONE,
 	FILE_STATUS_UP_TO_DATE,
 	FILE_STATUS_NEEDS_PATCH,
 	FILE_STATUS_ADDED,
@@ -28,6 +32,7 @@ struct _ApothekeFile {
 	gboolean            directory;
 	time_t              mtime;
 
+	ApothekeFileType    type;
 	ApothekeFileStatus  status;
 	gchar               *cvs_revision; 
 	gchar               *cvs_date;

@@ -11,6 +11,7 @@
         <cmd name="CVS Tag" _label="CVS Tag"/>
         <cmd name="CVS Update" _label="CVS Update"/>
 	<cmd name="CVS Commandline" _label="CVS Commandline"/>
+        <cmd name="Hide Ignored Files" _label="Hide Ignored Files"/>
 </commands>
   
 <menu>

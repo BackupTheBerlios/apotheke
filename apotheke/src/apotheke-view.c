@@ -19,6 +19,7 @@
 #include <gtk/gtktextview.h>
 #include <libgnomevfs/gnome-vfs-mime-utils.h>
 #include <libgnome/gnome-i18n.h>
+#include <gconf/gconf-client.h>
 
 #include "apotheke-view.h"
 #include "apotheke-directory.h"
@@ -42,8 +43,10 @@ struct _ApothekeViewPrivate {
 	GtkWidget     *tree_view;
 	GtkWidget     *text_view;
 	GtkTextBuffer *console;
+	BonoboUIComponent *ui_component;
 
 	ApothekeClientCVS *client;
+	GConfClient   *config;
 
 	gboolean     hide_ignored_files;
 
@@ -61,6 +64,10 @@ struct _ApothekeViewPrivate {
 #define LIST_VIEW_ICON_HEIGHT           24
 
 #define ID_HIDE_IGNORED_FILES           "Hide Ignored Files"
+
+#define APOTHEKE_CONFIG_DIR              "/apps/apotheke"
+#define APOTHEKE_CONFIG_CONSOLE_POS      "/apps/apotheke/view/console_pos"
+#define APOTHEKE_CONFIG_HIDE_IGNORED     "/apps/apotheke/view/hide_ignored"
 
 static void apotheke_view_class_init (ApothekeViewClass *klass);
 static void apotheke_view_instance_init (ApothekeView *view);
@@ -163,6 +170,7 @@ hide_ignored_files_state_changed_callback (BonoboUIComponent   *component,
 					   gpointer            user_data)
 {
 	ApothekeView *view;
+	gboolean hide_files;
 
 	view = (ApothekeView*) user_data;
 
@@ -171,8 +179,10 @@ hide_ignored_files_state_changed_callback (BonoboUIComponent   *component,
 		return;
 	}
 
-	apotheke_directory_set_hide_ignored_files (view->priv->ad,
-						   g_strcasecmp (state, "1") == 0);
+	hide_files = (g_ascii_strcasecmp (state, "1") == 0);
+
+	gconf_client_set_int (view->priv->config, APOTHEKE_CONFIG_HIDE_IGNORED,
+			      (int) hide_files, NULL);
 }
 
 static void
@@ -299,6 +309,7 @@ merge_bonobo_ui_callback (BonoboControl *control,
 {
  	ApothekeView *view;
 	BonoboUIComponent *ui_component;
+	gboolean hide_ignored;
 
 	g_assert (BONOBO_IS_CONTROL (control));
 	
@@ -309,6 +320,13 @@ merge_bonobo_ui_callback (BonoboControl *control,
 							DATADIR,
 							"apotheke-view-ui.xml",
 							"apotheke-view");
+
+		hide_ignored = (gconf_client_get_int (view->priv->config, APOTHEKE_CONFIG_HIDE_IGNORED, NULL) == 1);
+		bonobo_ui_component_set_prop (ui_component,
+					      "/commands/Hide Ignored Files",
+					      "state",
+					      hide_ignored ? "1" : "0",
+					      NULL);
 		
 		bonobo_ui_component_add_listener (ui_component, 
 						  ID_HIDE_IGNORED_FILES, 
@@ -318,6 +336,7 @@ merge_bonobo_ui_callback (BonoboControl *control,
 		bonobo_ui_component_add_verb_list_with_data (ui_component, 
 							     apotheke_verbs,
 							     view);
+		view->priv->ui_component = ui_component;
 	}
 }
 
@@ -577,6 +596,9 @@ gutter_button_release_callback (GtkWidget *widget, GdkEventButton *event,  gpoin
 			hide_console (view);
 		}
 	}
+	
+	gconf_client_set_int (view->priv->config, APOTHEKE_CONFIG_CONSOLE_POS,
+			      gtk_paned_get_position (GTK_PANED (view->priv->gutter.paned)), NULL);
 
 	return FALSE;
 }
@@ -667,6 +689,32 @@ construct_ui (ApothekeView *view)
 
 	gtk_container_add (GTK_CONTAINER (priv->event_box), vpane);
 	gtk_widget_show_all (vpane);
+
+	gtk_paned_set_position (GTK_PANED (priv->gutter.paned), 
+				gconf_client_get_int (priv->config, APOTHEKE_CONFIG_CONSOLE_POS, NULL));
+	priv->gutter.saved_position = gconf_client_get_int (priv->config, 
+							    APOTHEKE_CONFIG_CONSOLE_POS, NULL);
+}
+
+static void
+config_value_changed_cb (GConfClient *client,
+			 guint cnxn_id,
+			 GConfEntry *entry,
+			 gpointer user_data)
+{
+	ApothekeView *view;
+
+	view = APOTHEKE_VIEW (user_data);
+
+	if (entry == NULL) return;
+
+	if (g_ascii_strcasecmp (entry->key, APOTHEKE_CONFIG_HIDE_IGNORED) == 0) {
+		gboolean hide;
+
+		hide = (gconf_value_get_int (entry->value) == 1);
+		if (view->priv->ad != NULL)
+			apotheke_directory_set_hide_ignored_files (view->priv->ad, hide);
+	}
 }
 
 static void
@@ -679,8 +727,22 @@ apotheke_view_instance_init (ApothekeView *view)
 	priv->hide_ignored_files = FALSE;
 	priv->ad = NULL;
 	priv->icon_cache = NULL;
+	priv->ui_component = NULL;
 	g_datalist_init (&priv->icon_cache);
 
+	/* init gconf */
+	g_assert (gconf_is_initialized ());
+	priv->config = gconf_client_get_default ();
+	gconf_client_add_dir (priv->config,
+			      APOTHEKE_CONFIG_DIR,
+			      GCONF_CLIENT_PRELOAD_ONELEVEL,
+			      NULL);
+	gconf_client_notify_add (priv->config,
+				 APOTHEKE_CONFIG_DIR,
+				 config_value_changed_cb,
+				 view,
+				 NULL, NULL);
+			      
         priv->event_box = gtk_event_box_new ();
         gtk_widget_show (priv->event_box);
 
@@ -711,6 +773,9 @@ apotheke_view_destroy (BonoboObject *object)
 
 	priv = ((ApothekeView*) object)->priv;
 
+	gconf_client_remove_dir (priv->config, APOTHEKE_CONFIG_DIR, NULL);
+	g_object_unref (G_OBJECT (priv->config));
+
 	g_object_unref (G_OBJECT (priv->ad));
 
 	g_object_unref (G_OBJECT (priv->client));
@@ -739,6 +804,7 @@ static void
 apotheke_view_load_uri (ApothekeView *view, const char *location)
 {
 	ApothekeViewPrivate *priv;
+	gboolean hide_ignored;
 
 	priv = view->priv;
 
@@ -747,6 +813,16 @@ apotheke_view_load_uri (ApothekeView *view, const char *location)
 
 	priv->ad = apotheke_directory_new (location);
 	apotheke_directory_create_file_list (priv->ad);
+
+	hide_ignored = (gconf_client_get_int (priv->config, APOTHEKE_CONFIG_HIDE_IGNORED, NULL) == 1);
+	if (priv->ui_component) {
+		bonobo_ui_component_set_prop (priv->ui_component,
+					      "/commands/Hide Ignored Files",
+					      "state",
+					      hide_ignored ? "1" : "0",
+					      NULL);
+	}
+	apotheke_directory_set_hide_ignored_files (priv->ad, hide_ignored);
 
 	gtk_tree_view_set_model (GTK_TREE_VIEW (priv->tree_view), 
 				 GTK_TREE_MODEL (priv->ad));

@@ -1,5 +1,35 @@
 2002-05-31  Jens Finke <jens@triq.net>
 
+	* Makefile.am: Added gconf schema stuff.
+	
+	* acconfig.h: Undef gconf related variables.
+
+	* configure.in: Check for gconf.
+
+	* src/apotheke-directory.c (monitor_callback): Cosmetic updates.
+
+	* src/apotheke-main.c (post_init_callback): New function.
+	(main): Make sure post_init_callback is called.
+
+	* src/apotheke-view-ui.xml.in: Added 'Hide Ignored Files' to commands section.
+
+	* src/apotheke-view.c (hide_ignored_files_state_changed_callback):
+	Change the state through gconf only.
+	(merge_bonobo_ui_callback): Init hide ignored files toggle item
+	according to gconf value, save ui_component pointer.
+	(gutter_button_release_callback): Save gutter position with gconf.
+	(construct_ui): Try to restore gutter position (doesn't work
+	correctly yet).
+	(config_value_changed_cb): New function.
+	(apotheke_view_instance_init): Setup gconf client.
+	(apotheke_view_destroy): Free gconf stuff.
+	(apotheke_view_load_uri): Init hide ignored files toggle item
+	according to gconf value.
+
+	* apotheke.schemas: New file.
+	
+2002-05-31  Jens Finke <jens@triq.net>
+
 	* src/apotheke-directory.c (monitor_callback): #if 0'ed not yet 
 	existing functions.
 

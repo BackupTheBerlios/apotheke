@@ -1,0 +1,150 @@
+# German translation for Apotheke
+# Copyright (C) 2002 Free Software Foundation, Inc.
+# Jens Finke <jens@triq.net>, 2002
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.1\n"
+"POT-Creation-Date: 2002-03-21 09:03+0100\n"
+"PO-Revision-Date: 2002-03-21 11:00+0100\n"
+"Last-Translator: Jens Finke <jens@triq.net>\n"
+"Language-Team: German <gnome-de@gnome.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/apotheke-view.c:94
+msgid "Flag"
+msgstr "Flagge"
+
+#: src/apotheke-view.c:96
+msgid "Name"
+msgstr "Name"
+
+#: src/apotheke-view.c:97
+msgid "Revision"
+msgstr "Revision"
+
+#: src/apotheke-view.c:98
+msgid "Status"
+msgstr "Status"
+
+#: src/apotheke-view.c:99
+msgid "Option"
+msgstr "Option"
+
+#: src/apotheke-view.c:100
+msgid "Tag"
+msgstr "Tag"
+
+#: src/apotheke-view.c:101
+msgid "Date"
+msgstr "Datum"
+
+#: src/apotheke-directory.c:99
+#, c-format
+msgid "Couldn't open %s as directory.\n"
+msgstr "Konnte %s nicht als Verzeichnis öffnen.\n"
+
+#: src/apotheke-directory.c:190
+#, c-format
+msgid "Couldn't open directory %s: %s"
+msgstr "Konnte Verzeichnis %s nicht öffnen: %s"
+
+#: src/apotheke-directory.c:261
+#, c-format
+msgid "Couldn't open file: %s\n"
+msgstr "Konnte Datei nicht öffnen: %s\n"
+
+#: src/apotheke-directory.c:317
+#, c-format
+msgid "Oops, directory %s has no D flag in CVS/Entries."
+msgstr "Oops, Verzeichnis %s hat kein D Flag in CVS/Entries."
+
+#: src/apotheke-directory.c:419
+msgid "No .cvsignore file found.\n"
+msgstr "Keine .cvsignore Datei gefunden.\n"
+
+#: src/apotheke-directory.c:486
+msgid "Unknown"
+msgstr "Unbekannt"
+
+#: src/apotheke-directory.c:490
+msgid "Not in CVS"
+msgstr "Nicht in CVS"
+
+#: src/apotheke-directory.c:494
+msgid "Directory"
+msgstr "Verzeichnis"
+
+#: src/apotheke-directory.c:496
+msgid "File"
+msgstr "Datei"
+
+#: src/apotheke-directory.c:500
+msgid "Ignore"
+msgstr "Ignoriere"
+
+#: src/apotheke-directory.c:503
+msgid "Up-To-Date"
+msgstr "Aktuell"
+
+#: src/apotheke-directory.c:506
+msgid "Needs Patch"
+msgstr "Benötigt Patch"
+
+#: src/apotheke-directory.c:509
+msgid "Added"
+msgstr "Hinzugefügt"
+
+#: src/apotheke-directory.c:512
+msgid "Modified"
+msgstr "Verändert"
+
+#: src/apotheke-directory.c:515
+msgid "Removed"
+msgstr "Entfernt"
+
+#: src/apotheke-directory.c:518
+msgid "Needs Checkout"
+msgstr "Benötigt Checkout"
+
+#: src/apotheke-directory.c:521
+msgid "Needs Merge"
+msgstr "Benötigt Vereinigung"
+
+#: src/apotheke-directory.c:524
+msgid "Missing"
+msgstr "Vermisst"
+
+#: src/apotheke-view-ui.xml.in.h:1
+msgid "CVS Status"
+msgstr "CVS Status"
+
+#: src/apotheke-view-ui.xml.in.h:2
+msgid "Hide Ignored Files"
+msgstr "Verstecke ignorierte Dateien"
+
+#: src/Apotheke_View.server.in.h:1
+msgid "Apotheke"
+msgstr "Apotheke"
+
+#: src/Apotheke_View.server.in.h:2
+msgid "Apotheke view"
+msgstr "Apotheke Ansicht"
+
+#: src/Apotheke_View.server.in.h:3
+msgid "Apotheke view factory"
+msgstr "Apotheke Ansicht Fabrik"
+
+#: src/Apotheke_View.server.in.h:4
+msgid "CVS Viewer"
+msgstr "CVS Betrachter"
+
+#: src/Apotheke_View.server.in.h:5
+msgid "Factory for apotheke view"
+msgstr "Fabrik für Apotheke Ansicht"
+
+#: src/Apotheke_View.server.in.h:6
+msgid "View as CVS"
+msgstr "Als CVS betrachten"

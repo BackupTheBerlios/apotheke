@@ -1,0 +1,103 @@
+2002-03-21  Jens Finke <jens@triq.net>
+
+	* Apotheke_View.server.in: Changed 'View as Apotheke' to 'View as
+	CVS'.
+	
+2002-03-20  Jens Finke <jens@triq.net>
+
+	* Released version 0.1.
+
+	* NEWS: Updated.
+	
+2002-03-20  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-client-cvs.[ch]
+	* src/apotheke-options.h: New files.
+	
+	* src/.cvsignore: Added Apotheke_View.server and apotheke-view-ui.xml.
+
+	* src/Makefile.am (apotheke_view_SOURCES): Added new files.
+
+	* src/apotheke-main.c (main): Let nautilus_view_standard_main
+	initialize gettext.
+
+	* src/apotheke-view-ui.xml.in: Added CVS status menu entry.
+
+	* src/apotheke-view.c (add_selected_file_to_list),
+	(verb_CVS_status_cb): New functions.
+	(merge_bonobo_ui_callback): Initialize bonobo callbacks.
+	(construct_ui): New function.
+	(apotheke_view_instance_init): Moved the ui construction stuff to
+	construct_ui.
+	(apotheke_view_destroy): Destroy client.
+
+2002-03-14  Jens Finke  <jens@triq.net>
+
+	* Makefile.am (SUBDIRS): Added po
+	(EXTRA_DIST): Added intltool files.
+
+	* src/Apotheke_View.server: Renamed to Apotheke_View.server.in and
+	marked strings for translation.
+
+	* src/Makefile.in: Added intltool stuff for server file.
+	
+2002-03-14  Jens Finke  <jens@triq.net>
+
+	* Makefile.am (SUBDIRS): Added po dir.
+
+	* configure.in: Added gettext and intltool stuff for ui xml file.
+
+	* src/Makefile.am (INCLUDES): Added locale dir.
+	Added intltool stuff.
+
+	* src/apotheke-directory.c: Marked all translatable strings.
+
+	* src/apotheke-main.c (main): Call bindtextdomain and friends.
+
+	* src/apotheke-view-ui.xml: Renamed to *.xml.in and marked
+	translatable labels.
+
+	* src/apotheke-view.c: Marked all translatable strings.
+
+	* acconfig.h
+	* NEWS
+	* README
+	* COPYING: New files.
+	
+2002-03-14  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-directory.[ch] (apotheke_directory_apply_cvs_status):
+	Don't crash if entries filename is NULL.
+	(apotheke_directory_get_uri): New function.
+
+	* apotheke-view.c (CREATE_COLUMN): Added minimum width parameter,
+	made the columns resizable.
+	(set_up_tree_view): Added minimum parameter to CREATE_COLUMN calls.	
+	(list_activate_callback): New function.
+	(apotheke_view_instance_init): Connect to "row_activated" signal.
+	(apotheke_view_load_uri): Free existing model.
+
+2002-03-13  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-directory.c (apotheke_directory_apply_cvs_status):
+	Divided the algorithm into two parts: one for determining which
+	status the file has, the other for filling the struct with the
+	rest of the attributes.
+
+2002-03-13  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-directory.c (apotheke_directory_apply_cvs_status): 
+	Handle missing, removed and added files correctly.
+	(get_status_and_flag_text): Added missing case.
+
+	* src/apotheke-file.h (ApothekeFileStatus): Added
+	FILE_STATUS_MISSING.
+
+2002-03-13  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-directory.c (apotheke_directory_apply_cvs_status):
+	Handle removed files.
+
+2002-03-13  Jens Finke  <jens@triq.net>
+
+	* Import to local CVS repository.

@@ -1,0 +1,30 @@
+<oaf_info>
+
+<oaf_server iid="OAFIID:apotheke_view_factory:2002-03-09-23-02-15" type="exe" location="apotheke-view">
+	<oaf_attribute name="repo_ids" type="stringv">
+		<item value="IDL:GNOME/ObjectFactory:1.0"/>
+	</oaf_attribute>
+	<oaf_attribute name="name" type="string" _value="Apotheke view factory"/>
+	<oaf_attribute name="description" type="string" _value="Factory for apotheke view"/>
+</oaf_server>
+
+<oaf_server iid="OAFIID:apotheke_view:2002-03-09-23-02-15" type="factory" location="OAFIID:apotheke_view_factory:2002-03-09-23-02-15">	
+        <oaf_attribute name="repo_ids" type="stringv">
+		<item value="IDL:Bonobo/Unknown:1.0"/>
+		<item value="IDL:Bonobo/Control:1.0"/>
+		<item value="IDL:Nautilus/View:1.0"/>
+	</oaf_attribute>
+	<oaf_attribute name="name" type="string" _value="Apotheke view"/>
+	<oaf_attribute name="description" type="string" _value="Apotheke view"/>
+	<oaf_attribute name="bonobo:supported_mime_types" type="stringv">
+		<item value="x-directory/*"/>
+	</oaf_attribute>
+	<oaf_attribute name="bonobo:supported_uri_schemes" type="stringv">
+		<item value="file"/>
+	</oaf_attribute>
+
+	<oaf_attribute name="nautilus:view_as_name" type="string" _value="Apotheke"/>
+	<oaf_attribute name="nautilus:view_as_label" type="string" _value="View as CVS"/>
+	<oaf_attribute name="nautilus:viewer_label" type="string" _value="CVS Viewer"/>
+</oaf_server>
+</oaf_info>

@@ -1,0 +1,5 @@
+src/apotheke-view.c
+src/apotheke-directory.c
+src/apotheke-view-ui.xml.in
+src/Apotheke_View.server.in
+

@@ -91,10 +91,16 @@ apotheke_cvs_entries_get_entries (gchar *uri)
 	buffer = g_new0 (gchar, 512);
 	
 	while (fgets (buffer, 512, file)) {
-		
 		strings = g_strsplit (buffer, "/", 6);
 
-		list = g_list_prepend (list, strings);
+		if (strings[1] == NULL) {
+			/* this is a special case where we only read a "D" for the
+			   complete line and the rest is empty */
+			g_strfreev (strings);
+		}
+		else {
+			list = g_list_prepend (list, strings);
+		}
 	}
 
 	g_free (buffer);

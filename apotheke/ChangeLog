@@ -1,3 +1,8 @@
+2002-12-30  Jens Finke  <jens@triq.net>
+
+	* src/apotheke-cvs-entries.c (apotheke_cvs_entries_get_entries):
+	Overread lines in CVS/Entries with only a 'D'.
+	
 2002-12-27  Jens Finke  <jens@triq.net>
 
      	* configure.in: Removed GNOME_COMPILE_WARNINGS.

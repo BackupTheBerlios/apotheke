@@ -1,3 +1,28 @@
+2000-05-31  Jens Finke <jens@triq.net>
+
+	* configure.in: Added check for libfam.
+
+	* acconfig.h: undef HAVE_LIBFAM.
+
+	* src/apotheke-cvs-entries.[ch]: New files.
+	
+	* src/Makefile.am (apotheke_view_SOURCES): Added
+	apotheke-cvs-entries.[ch].
+	(apotheke_view_LADD): Added fam libs.
+	
+	* apotheke-directory.c (apotheke_directory_dispose): New function.
+	(apotheke_directory_instance_init): Init monitor attribute.
+	(apotheke_directory_class_init): Link dispose function.
+	(monitor_callback): New function.
+	(apotheke_directory_create_inital_file_list): Added monitor if fam
+	is available.
+	(apotheke_directory_apply_cvs_status): Rewrote this method and
+	moved lot of functionality to apotheke-cvs-entries.c
+	(apply_cvs_status_callback): New function.
+
+	* apotheke-view.c (construct_ui): Added etched in shadow around text
+	view.
+	
 2002-05-23  Jens Finke <jens@triq.net>
 
 	* src/apotheke-directory.c (apotheke_directory_finalize): No more

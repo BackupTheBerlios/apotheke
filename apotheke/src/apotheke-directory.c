@@ -19,6 +19,7 @@
 #include <libgnome/gnome-i18n.h>
 
 #include "apotheke-directory.h"
+#include "apotheke-cvs-entries.h"
 
 #define LIST_VIEW_ICON_HEIGHT           24
 
@@ -26,6 +27,9 @@ struct _ApothekeDirectoryPrivate {
 	gchar     *uri;
 	GData     *file_list;
 	gboolean  hide_ignored_files;
+#ifdef HAVE_LIBFAM
+	GnomeVFSMonitorHandle *monitor;
+#endif
 };
 
 static void apotheke_directory_instance_init (ApothekeDirectory *dir);
@@ -33,6 +37,7 @@ static void apotheke_directory_class_init (ApothekeDirectoryClass *klass);
 static void apotheke_directory_apply_cvs_status (ApothekeDirectory *dir);
 static void apotheke_directory_apply_ignore_list (ApothekeDirectory *dir);
 static void apotheke_directory_finalize (GObject *object);
+static void apotheke_directory_dispose (GObject *object);
 static gint apotheke_sort_func (GtkTreeModel *model,
 				GtkTreeIter *a,
 				GtkTreeIter *b,
@@ -52,6 +57,9 @@ apotheke_directory_instance_init (ApothekeDirectory *dir)
 	priv->uri = NULL;
 	priv->file_list = NULL;
 	priv->hide_ignored_files = FALSE;
+#ifdef HAVE_LIBFAM
+	priv->monitor = NULL;
+#endif
 	g_datalist_init (&priv->file_list);
 }
 
@@ -62,6 +70,7 @@ apotheke_directory_class_init (ApothekeDirectoryClass *klass)
 
 	gobject_class = G_OBJECT_CLASS (klass);
 
+	gobject_class->dispose = apotheke_directory_dispose;
         gobject_class->finalize = apotheke_directory_finalize;
 }
 
@@ -110,6 +119,20 @@ apotheke_directory_new (const gchar *uri)
 	apotheke_directory_construct (ad, uri);
 
 	return ad;
+}
+
+static void 
+apotheke_directory_dispose (GObject *object)
+{
+	ApothekeDirectory *ad;
+
+	ad = APOTHEKE_DIRECTORY (object);
+
+#ifdef HAVE_LIBFAM
+	if (ad->priv->monitor)
+		gnome_vfs_monitor_cancel (ad->priv->monitor);
+	ad->priv->monitor = NULL;
+#endif
 }
 
 static void 
@@ -168,6 +191,40 @@ apotheke_sort_func (GtkTreeModel *model,
 	}
 }
 
+#ifdef HAVE_LIBFAM
+static void
+monitor_callback (GnomeVFSMonitorHandle *handle,
+		  const gchar *monitor_uri,
+		  const gchar *info_uri,
+		  GnomeVFSMonitorEventType event_type,
+		  gpointer user_data)
+{
+	ApothekeDirectory *ad;
+	ApothekeFile *af;
+
+	ad = APOTHEKE_DIRECTORY (user_data);
+
+	switch (event_type) {
+	case GNOME_VFS_MONITOR_EVENT_CHANGED:
+		g_print ("Changed: %s  %s\n", monitor_uri, info_uri);
+		af = get_apotheke_file_from_uri (ad, info_uri);
+		if (af->status == FILE_STATUS_CVS_FILE) {
+			af->status = FILE_STATUS_MODIFIED;
+			/* FIXME: this function doesn't exist yet. */
+			/* apply_apotheke_file_to_model (ad, af); */
+		}
+		break;
+	case GNOME_VFS_MONITOR_EVENT_DELETED:
+		g_print ("Deleted: %s  %s\n", monitor_uri, info_uri);
+		break;
+	case GNOME_VFS_MONITOR_EVENT_CREATED:
+		g_print ("Created: %s  %s\n", monitor_uri, info_uri);
+		break;
+	default:
+	}
+}
+#endif
+
 static void
 apotheke_directory_create_initial_file_list (ApothekeDirectory *dir)
 {
@@ -224,172 +281,144 @@ apotheke_directory_create_initial_file_list (ApothekeDirectory *dir)
 	}
 
 	g_list_free (dir_list);
+
+#ifdef HAVE_LIBFAM
+	result = gnome_vfs_monitor_add (&priv->monitor,
+					priv->uri,
+					GNOME_VFS_MONITOR_DIRECTORY,
+					monitor_callback,
+					dir);
+	if (result != GNOME_VFS_OK) 
+		priv->monitor = NULL;
+#endif
 }
 
-enum {
-	CVS_ENTRIES_DIR,
-	CVS_ENTRIES_FILENAME,
-	CVS_ENTRIES_REVISION,
-	CVS_ENTRIES_DATE,
-	CVS_ENTRIES_OPTION,
-	CVS_ENTRIES_TAG
-};
+static void
+apply_cvs_status_to_apotheke_file (char **entry, ApothekeFile *af)
+{	
+	time_t  cvs_time_t;
+	struct tm tm_entry;
+
+	/* To make the code clearer we have two steps here: First we check
+	 * which status the files has. Then on base of the status we fill in
+	 * the rest of the information.
+	 */
+	if (entry[CVS_ENTRIES_DIR][0] == 'D') {
+		if (af->directory) {
+			af->type = FILE_TYPE_CVS;
+			af->status = FILE_STATUS_UP_TO_DATE;
+		}
+		else {
+			af->type = FILE_TYPE_UNKNOWN;
+			af->status = FILE_STATUS_NONE;
+			g_warning (_("Oops, directory %s has no D flag in CVS/Entries."),
+				   af->filename);
+		}
+	}
+	else if (af->type == FILE_TYPE_NOT_IN_CVS) {
+		/* these are all other cases */
+		af->type = FILE_TYPE_CVS;
+		
+		/* NOTE: CVS stores UTC time, not localtime. */
+		strptime (entry[CVS_ENTRIES_DATE], "%a %h %e %T %Y", &tm_entry);
+		cvs_time_t = timegm (&tm_entry);
+		
+		if (af->mtime > cvs_time_t) {
+			if (entry[CVS_ENTRIES_REVISION][0] == '0' /*NOT '\0'*/) {
+				af->status = FILE_STATUS_ADDED;
+			}
+			else {
+				af->status = FILE_STATUS_MODIFIED;
+			}
+		}
+		else {
+			af->status = FILE_STATUS_UP_TO_DATE;
+		}		
+	}
+	
+	/* Second step: fill the rest of the attributes. */
+	af->cvs_revision = NULL;
+	af->cvs_date = NULL;
+	af->cvs_option = NULL;
+	af->cvs_tag = NULL;
+		
+	/* set revision attribute */
+	if (entry[CVS_ENTRIES_REVISION][0] != '\0' &&
+	    af->type == FILE_TYPE_CVS && 
+	    (af->status == FILE_STATUS_MODIFIED ||
+	     af->status == FILE_STATUS_UP_TO_DATE))
+	{
+		af->cvs_revision = g_strdup (entry[CVS_ENTRIES_REVISION]);
+	}
+	else if (entry[CVS_ENTRIES_REVISION][0] != '\0' &&
+		 af->type == FILE_TYPE_CVS &&
+		 af->status == FILE_STATUS_REMOVED) 
+	{
+		af->cvs_revision = g_strdup (entry[CVS_ENTRIES_REVISION]+1);
+	}
+	
+	/* set date attribute */
+	if (entry[CVS_ENTRIES_DATE][0] != '\0' &&
+	    af->type == FILE_TYPE_CVS && 
+	    (af->status == FILE_STATUS_MODIFIED ||
+	     af->status == FILE_STATUS_UP_TO_DATE))
+	{
+		af->cvs_date = g_strdup (entry[CVS_ENTRIES_DATE]);
+	}
+	
+	/* set option attribute. */
+	if (entry[CVS_ENTRIES_OPTION][0] != '\0') {
+		af->cvs_option = g_strdup (entry[CVS_ENTRIES_OPTION]);
+	}
+	
+	/* set tag */
+	if (entry[CVS_ENTRIES_TAG][0] != '\0') {
+		af->cvs_tag = g_strdup (g_strstrip (entry[CVS_ENTRIES_TAG]+1));
+	}
+}
+
+static void
+apply_cvs_status_callback (char **entry, gpointer data)
+{
+	ApothekeDirectoryPrivate *priv;
+	ApothekeFile *af;
+
+	priv = APOTHEKE_DIRECTORY (data)->priv;
+		
+	if (entry[CVS_ENTRIES_FILENAME] == NULL) return;
+	
+	af = (ApothekeFile*) g_datalist_get_data (&priv->file_list, 
+						  entry[CVS_ENTRIES_FILENAME]);
+
+	if (af == NULL) {
+		af = g_new0 (ApothekeFile, 1);
+		
+		af->filename = g_filename_to_utf8 (entry[CVS_ENTRIES_FILENAME], 
+						   -1, NULL, NULL, NULL);
+		af->quark = g_quark_from_string (entry[CVS_ENTRIES_FILENAME]);
+		af->type = FILE_TYPE_CVS;
+		
+		if (entry[CVS_ENTRIES_REVISION][0] == '-') {
+			af->status = FILE_STATUS_REMOVED;
+		}
+		else {
+			af->status = FILE_STATUS_MISSING;
+		}
+		
+		g_datalist_id_set_data (&priv->file_list, af->quark, af);
+	}
+
+	apply_cvs_status_to_apotheke_file (entry, af);
+}
 
 void 
 apotheke_directory_apply_cvs_status (ApothekeDirectory *dir)
 {
-	ApothekeDirectoryPrivate *priv;
-	FILE *file;
-	gchar *entries_file;
-	gchar *entries_uri;
-	gchar *buffer;
-	gchar **strings;
-	ApothekeFile *af;
-	time_t  cvs_time_t;
-	struct tm tm_entry;
-	GnomeVFSFileInfo *info;
-	GnomeVFSResult result;
-
 	g_return_if_fail (APOTHEKE_IS_DIRECTORY (dir));
 
-	priv = dir->priv;
-
-	entries_uri = g_build_filename (priv->uri, "CVS", "Entries", NULL);
-	info = gnome_vfs_file_info_new ();
-	result = gnome_vfs_get_file_info (entries_uri, info, GNOME_VFS_FILE_INFO_DEFAULT);
-	if (result != GNOME_VFS_OK || info->type != GNOME_VFS_FILE_TYPE_REGULAR) {
-		g_print (_("Couldn't open file: %s\n"), entries_uri);
-		g_free (entries_uri); 
-		gnome_vfs_file_info_unref (info);
-		return;
-	}
-	gnome_vfs_file_info_unref (info);
-	
-	entries_file = gnome_vfs_get_local_path_from_uri (entries_uri);
-	if (entries_file == NULL) {
-		g_free (entries_uri);
-		return;
-	}
-	
-	file = fopen (entries_file, "r");
-	buffer = g_new0 (gchar, 256);
-	
-	while (fgets (buffer, 256, file)) {
-		
-		strings = g_strsplit (buffer, "/", 6);
-		
-		if (strings[CVS_ENTRIES_FILENAME] == NULL) {
-			g_strfreev (strings);
-			continue;
-		}
-		
-		af = (ApothekeFile*) g_datalist_get_data (&priv->file_list, 
-							  strings[CVS_ENTRIES_FILENAME]);
-		
-	        /* To make the code clearer we have two steps here: First we check
-		 * which status the files has. Then on base of the status we fill in
-		 * the rest of the information.
-		 */
-
-		if (af == NULL) {
-			af = g_new0 (ApothekeFile, 1);
-			
-			af->filename = g_filename_to_utf8 (strings[CVS_ENTRIES_FILENAME], 
-							   -1, NULL, NULL, NULL);
-			af->quark = g_quark_from_string (strings[CVS_ENTRIES_FILENAME]);
-			af->type = FILE_TYPE_CVS;
-			
-			if (strings[CVS_ENTRIES_REVISION][0] == '-') {
-				af->status = FILE_STATUS_REMOVED;
-			}
-			else {
-				af->status = FILE_STATUS_MISSING;
-			}
-			
-			g_datalist_id_set_data (&priv->file_list, af->quark, af);
-		}
-		
-		if (strings[CVS_ENTRIES_DIR][0] == 'D') {
-			if (af->directory) {
-				af->type = FILE_TYPE_CVS;
-				af->status = FILE_STATUS_UP_TO_DATE;
-			}
-			else {
-				af->type = FILE_TYPE_UNKNOWN;
-				af->status = FILE_STATUS_NONE;
-				g_warning (_("Oops, directory %s has no D flag in CVS/Entries."),
-					   af->filename);
-			}
-		}
-		else if (af->type == FILE_TYPE_NOT_IN_CVS) {
-			/* these are all other cases */
-			af->type = FILE_TYPE_CVS;
-			
-			/* NOTE: CVS stores UTC time, not localtime. */
-			strptime (strings[CVS_ENTRIES_DATE], "%a %h %e %T %Y", &tm_entry);
-			cvs_time_t = timegm (&tm_entry);
-			
-			if (af->mtime > cvs_time_t) {
-				if (strings[CVS_ENTRIES_REVISION][0] == '0' /*NOT '\0'*/) {
-					af->status = FILE_STATUS_ADDED;
-				}
-				else {
-					af->status = FILE_STATUS_MODIFIED;
-				}
-			}
-			else {
-				af->status = FILE_STATUS_UP_TO_DATE;
-			}		
-		}
-		
-		/* Second step: fill the rest of the attributes. */
-		af->cvs_revision = NULL;
-		af->cvs_date = NULL;
-		af->cvs_option = NULL;
-		af->cvs_tag = NULL;
-		
-		/* set revision attribute */
-		if (strings[CVS_ENTRIES_REVISION][0] != '\0' &&
-		    af->type == FILE_TYPE_CVS && 
-		    (af->status == FILE_STATUS_MODIFIED ||
-		     af->status == FILE_STATUS_UP_TO_DATE))
-		{
-			af->cvs_revision = g_strdup (strings[CVS_ENTRIES_REVISION]);
-		}
-		else if (strings[CVS_ENTRIES_REVISION][0] != '\0' &&
-			 af->type == FILE_TYPE_CVS &&
-			 af->status == FILE_STATUS_REMOVED) 
-		{
-			af->cvs_revision = g_strdup (strings[CVS_ENTRIES_REVISION]+1);
-		}
-		
-		/* set date attribute */
-		if (strings[CVS_ENTRIES_DATE][0] != '\0' &&
-		    af->type == FILE_TYPE_CVS && 
-		    (af->status == FILE_STATUS_MODIFIED ||
-		     af->status == FILE_STATUS_UP_TO_DATE))
-		{
-			af->cvs_date = g_strdup (strings[CVS_ENTRIES_DATE]);
-		}
-		
-		/* set option attribute. */
-		if (strings[CVS_ENTRIES_OPTION][0] != '\0') {
-			af->cvs_option = g_strdup (strings[CVS_ENTRIES_OPTION]);
-		}
-
-		/* set tag */
-		if (strings[CVS_ENTRIES_TAG][0] != '\0') {
-			af->cvs_tag = g_strdup (g_strstrip (strings[CVS_ENTRIES_TAG]+1));
-		}
-		
-		g_strfreev (strings);
-	}
-
-	g_free (entries_uri);
-	g_free (entries_file);
-	g_free (buffer);
-	fclose (file);
+	apotheke_cvs_entries_for_each (dir->priv->uri, apply_cvs_status_callback, dir);
 }
+
 
 static void
 check_for_ignore_status (GQuark quark, gpointer data, gpointer data_user)

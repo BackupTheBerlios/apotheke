@@ -660,6 +660,8 @@ construct_ui (ApothekeView *view)
 	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll_window), 
 					GTK_POLICY_AUTOMATIC,
 					GTK_POLICY_ALWAYS);
+	gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scroll_window),
+					     GTK_SHADOW_IN);
 	gtk_container_add (GTK_CONTAINER (scroll_window), priv->text_view);
 	gtk_paned_pack2 (GTK_PANED (vpane), scroll_window, TRUE, TRUE);
 

@@ -17,9 +17,11 @@ apotheke_view_SOURCES =        \
 	apotheke-client-cvs.c  \
 	apotheke-highlight-buffer.c \
 	apotheke-highlight-buffer.h \
+	apotheke-cvs-entries.c \
+	apotheke-cvs-entries.h \
 	apotheke-options.h
 
-apotheke_view_LDADD = $(APOTHEKE_LIBS)
+apotheke_view_LDADD = $(APOTHEKE_LIBS) $(FAM_LIBS)
 
 serverdir = $(libdir)/bonobo/servers
 server_in_files = Apotheke_View.server.in

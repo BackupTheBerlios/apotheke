@@ -1,0 +1,23 @@
+<Root>
+<commands>
+        <cmd name="CVS Status" _label="CVS Status"/>
+</commands>
+  
+<menu>
+        <submenu name="Edit">
+		<placeholder name="Edit Items Placeholder">
+                        <menuitem name="CVS Status" verb=""/>
+		</placeholder>
+        </submenu>
+
+        <submenu name="View">
+                <placeholder name="View Items Placeholder">
+  	                <menuitem name="Hide Ignored Files" 
+			          _label="Hide Ignored Files"
+				  id="Hide Ignored Files"
+			          type="toggle"/>
+                </placeholder>
+        </submenu>
+</menu>
+
+</Root>

@@ -1,0 +1,15 @@
+*.lo
+*.la	
+.deps
+.libs
+.xvpics
+.thumbnails
+*.tar.gz
+*.o
+*~
+Makefile
+Makefile.in
+apotheke-view
+Apotheke_View.server
+apotheke-view-ui.xml
+

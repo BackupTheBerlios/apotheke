@@ -138,11 +138,12 @@ static const gchar* titles[] = {
 	N_("Date")
 };
 
-void get_row_icon (GtkTreeViewColumn *tree_column,
-		   GtkCellRenderer *cell,
-		   GtkTreeModel *tree_model,
-		   GtkTreeIter *iter,
-		   gpointer data)
+static void 
+get_row_icon (GtkTreeViewColumn *tree_column,
+	      GtkCellRenderer *cell,
+	      GtkTreeModel *tree_model,
+	      GtkTreeIter *iter,
+	      gpointer data)
 {
 	gboolean is_directory;
 	ApothekeFileStatus status;
@@ -169,6 +170,73 @@ void get_row_icon (GtkTreeViewColumn *tree_column,
 		      "pixbuf", pixbuf,
 		      NULL);
 }
+
+static void
+get_status_str (GtkTreeViewColumn *tree_column,
+		GtkCellRenderer *cell,
+		GtkTreeModel *tree_model,
+		GtkTreeIter *iter,
+		gpointer data)
+{
+	gboolean is_directory;
+	ApothekeFileStatus status;
+	ApothekeView *view;
+	ApothekeViewPrivate *priv;
+	char *str = "";
+
+	view = APOTHEKE_VIEW (data);
+	priv = view->priv;
+	
+	gtk_tree_model_get (GTK_TREE_MODEL (tree_model), iter,
+			    AD_COL_DIRECTORY, &is_directory,
+			    AD_COL_STATUS, &status,
+			    -1);
+
+	if (is_directory) {
+		if (status != FILE_STATUS_NOT_IN_CVS) {
+			str = _("Directory");
+		}
+	}
+	else {
+		switch (status) {
+		case FILE_STATUS_IGNORE:
+			str = _("Ignore");
+			break;
+		case FILE_STATUS_UP_TO_DATE:
+			str = _("Up-To-Date");
+			break;
+		case FILE_STATUS_NEEDS_PATCH:
+			str = _("Needs Patch");
+			break;
+		case FILE_STATUS_ADDED:
+			str = _("Added");
+			break;
+		case FILE_STATUS_MODIFIED:
+			str = _("Modified");
+			break;
+		case FILE_STATUS_REMOVED:
+			str = _("Removed");
+			break;
+		case FILE_STATUS_NEEDS_CHECKOUT:
+			str = _("Needs Checkout");
+			break;
+		case FILE_STATUS_NEEDS_MERGE:
+			str = _("Needs Merge");
+			break;
+		case FILE_STATUS_MISSING:
+			str = _("Missing");
+			break;
+		case FILE_STATUS_CONFLICT:
+			str = _("Conflict");
+			break;
+		}
+	}
+
+	g_object_set (G_OBJECT (cell), 
+		      "text", str,
+		      NULL);
+}
+
 
 static void
 set_up_tree_view (ApothekeView *view)
@@ -200,8 +268,22 @@ set_up_tree_view (ApothekeView *view)
         gtk_tree_view_column_set_resizable (column, TRUE);
 	gtk_tree_view_append_column (tree_view, column);
 
+	/* revision column */
 	CREATE_COLUMN (VIEW_COL_REVISION, 0.01, 100, AD_COL_VERSION, AD_COL_VERSION);
-	CREATE_COLUMN (VIEW_COL_STATUS, 0.01, 100, AD_COL_STATUS_STR, AD_COL_STATUS_STR);
+
+	/* status column */
+        cell = gtk_cell_renderer_text_new ();
+ 	gtk_cell_renderer_set_fixed_size (cell, -1, LIST_VIEW_MINIMUM_ROW_HEIGHT);
+        column = gtk_tree_view_column_new ();
+	gtk_tree_view_column_set_sort_column_id (column, AD_COL_STATUS);
+	gtk_tree_view_column_set_title (column, titles[VIEW_COL_STATUS]);
+	gtk_tree_view_column_pack_start (column, cell, TRUE);
+	gtk_tree_view_column_set_cell_data_func (column, cell, 
+						 get_status_str, 
+						 view, NULL);
+	gtk_tree_view_append_column (tree_view, column);
+	
+	/* the rest of the columns */
 	CREATE_COLUMN (VIEW_COL_OPTION, 0.5, 100, AD_COL_ATTRIBUTES, AD_COL_ATTRIBUTES);
 	CREATE_COLUMN (VIEW_COL_TAG, 0.01, 100, AD_COL_TAG, AD_COL_TAG);
 	CREATE_COLUMN (VIEW_COL_DATE, 0.01, 100, AD_COL_DATE, AD_COL_MTIME);

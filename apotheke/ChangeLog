@@ -1,5 +1,15 @@
 2003-01-05  Jens Finke  <jens@triq.net>
 
+	* src/apotheke-directory.c (get_status_text): Removed.
+
+	* src/apotheke-directory.h: Removed AD_COL_STATUS_STR.
+
+	* src/apotheke-view.c (get_status_str): New function.
+	(set_up_tree_view): Call get_status_str to determine the status
+	text for an entry.
+
+2003-01-05  Jens Finke  <jens@triq.net>
+
 	* src/apotheke-directory.c (get_file_icon): Removed.
 
 	* src/apotheke-directory.h: Removed AD_COL_FILEICON. This is now

@@ -39,9 +39,6 @@ static void apotheke_directory_class_init (ApothekeDirectoryClass *klass);
 static void apply_cvs_status (ApothekeDirectory *ad, GtkTreeIter *iter, 
 			      time_t mtime, GList **list);
 static gboolean is_file_ignored (gchar *filename, GList *pattern_list);
-static void get_status_text (ApothekeFileStatus status, 
-			     gboolean is_directory, 
-			     gchar **status_str);
 static void apotheke_directory_finalize (GObject *object);
 static void apotheke_directory_dispose (GObject *object);
 static gint apotheke_sort_func_name (GtkTreeModel *model,
@@ -56,6 +53,10 @@ static gint apotheke_sort_func_date (GtkTreeModel *model,
 				     GtkTreeIter *a,
 				     GtkTreeIter *b,
 				     gpointer user_data);
+static gint apotheke_sort_func_status (GtkTreeModel *model,
+				       GtkTreeIter *a,
+				       GtkTreeIter *b,
+				       gpointer user_data);
 
 
 GNOME_CLASS_BOILERPLATE (ApothekeDirectory, apotheke_directory,
@@ -100,7 +101,6 @@ apotheke_directory_construct (ApothekeDirectory *ad, const gchar *uri)
 		G_TYPE_STRING,   /* AD_COL_FILENAME */ 
 		G_TYPE_STRING,   /* AD_COL_VERSION */
 		G_TYPE_INT,      /* AD_COL_STATUS */
-		G_TYPE_STRING,   /* AD_COL_STATUS_STR */
 		G_TYPE_STRING,   /* AD_COL_ATTRIBUTES */
 		G_TYPE_STRING,   /* AD_COL_TAG */
 		G_TYPE_STRING,   /* AD_COL_DATE */
@@ -132,9 +132,9 @@ apotheke_directory_construct (ApothekeDirectory *ad, const gchar *uri)
 					 apotheke_sort_func_string,
 					 GINT_TO_POINTER (AD_COL_VERSION), NULL);
 	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
-					 AD_COL_STATUS_STR, 
-					 apotheke_sort_func_string,
-					 GINT_TO_POINTER (AD_COL_STATUS_STR), NULL);
+					 AD_COL_STATUS, 
+					 apotheke_sort_func_status,
+					 NULL, NULL);
 	gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (ad),
 					 AD_COL_ATTRIBUTES, 
 					 apotheke_sort_func_string,
@@ -326,20 +326,51 @@ apotheke_sort_func_date (GtkTreeModel *model,
 	}
 }
 
+static gint 
+apotheke_sort_func_status (GtkTreeModel *model,
+			   GtkTreeIter *a,
+			   GtkTreeIter *b,
+			   gpointer user_data)
+{
+	gboolean a_is_directory;
+	gboolean b_is_directory;
+	ApothekeFileStatus a_status;
+	ApothekeFileStatus b_status;
+	char *a_name;
+	char *b_name;
+
+	gtk_tree_model_get (model, a, 
+			    AD_COL_FILENAME, &a_name, 
+			    AD_COL_DIRECTORY, &a_is_directory,
+			    AD_COL_STATUS, &a_status,
+			    -1);
+	gtk_tree_model_get (model, b, 
+			    AD_COL_FILENAME, &b_name, 
+			    AD_COL_DIRECTORY, &b_is_directory,
+			    AD_COL_STATUS, &b_status,
+			    -1);
+	if (a_status == b_status) {
+		if (a_is_directory == b_is_directory) {
+			return g_utf8_collate (a_name, b_name);
+		}
+		else if (a_is_directory) {
+			return -1;
+		}
+		else {
+			return 1;
+		}
+	}
+	else {
+		return ((int) a_status - (int) b_status);
+	}
+}
+
+
 static void
 change_entry_status (ApothekeDirectory *ad, GtkTreeIter *iter, ApothekeFileStatus status)
 {
-	char *cvs_status;
-	gboolean is_directory;
-
-	gtk_tree_model_get (GTK_TREE_MODEL (ad), iter,
-			    AD_COL_DIRECTORY, &is_directory,
-			    -1);
-	get_status_text (status, is_directory, &cvs_status);
-
 	gtk_list_store_set (GTK_LIST_STORE (ad), iter,
 			    AD_COL_STATUS, (int) status,
-			    AD_COL_STATUS_STR, cvs_status,
 			    -1);
 }
 
@@ -459,13 +490,11 @@ dir_monitor_callback (GnomeVFSMonitorHandle *handle,
 			}
 			
 			/* FIXME: what if the file is ignored? */
-			get_status_text (FILE_STATUS_NOT_IN_CVS, FALSE, &status_str);
 			gtk_list_store_append (GTK_LIST_STORE (ad), &iter);
 			gtk_list_store_set (GTK_LIST_STORE (ad), &iter,
 					    AD_COL_DIRECTORY, FALSE,
 					    AD_COL_FILENAME, filename,
 					    AD_COL_STATUS, (int) FILE_STATUS_NOT_IN_CVS,
-					    AD_COL_STATUS_STR, status_str,
 					    -1);
 			g_free (path);
 			g_free (filename);
@@ -613,8 +642,7 @@ create_file_list (ApothekeDirectory *ad, GList **cvs_entries,
 				if (ignored) {
 					status = FILE_STATUS_IGNORE;
 				}
-				get_status_text (status, is_directory, &status_str);
-				
+
 				/* at this time the file will be shown in the list */ 
 				/* add first information we have here */
 				gtk_list_store_append (GTK_LIST_STORE (ad), &iter);
@@ -622,7 +650,6 @@ create_file_list (ApothekeDirectory *ad, GList **cvs_entries,
 						    AD_COL_DIRECTORY, is_directory,
 						    AD_COL_FILENAME, filename,
 						    AD_COL_STATUS, (int) status,
-						    AD_COL_STATUS_STR, status_str,
 						    -1);
 				
 				apply_cvs_status (ad, &iter, info->mtime, cvs_entries);
@@ -649,14 +676,12 @@ create_file_list (ApothekeDirectory *ad, GList **cvs_entries,
 
 		is_directory = (entry[CVS_ENTRIES_DIR][0] == 'D');
 		filename = g_filename_to_utf8 (entry[CVS_ENTRIES_FILENAME], -1, NULL, NULL, NULL);
-		get_status_text (status, is_directory, &status_str);
 
 		gtk_list_store_append (GTK_LIST_STORE (ad), &iter);
 		gtk_list_store_set (GTK_LIST_STORE (ad), &iter,
 				    AD_COL_DIRECTORY, is_directory,
 				    AD_COL_FILENAME, filename,
 				    AD_COL_STATUS, (int) status,
-				    AD_COL_STATUS_STR, status_str, 
 				    -1);
 	}
 }
@@ -774,11 +799,9 @@ apply_cvs_status (ApothekeDirectory *ad, GtkTreeIter *iter, time_t mtime, GList 
 	}
 
 	/* update model */
-	get_status_text (status, is_directory, &cvs_status);
 	gtk_list_store_set (GTK_LIST_STORE (ad), iter,
 			    AD_COL_STATUS, (int) status,
 			    AD_COL_VERSION, cvs_revision,
-			    AD_COL_STATUS_STR, cvs_status,
 			    AD_COL_ATTRIBUTES, cvs_option,
 			    AD_COL_TAG, cvs_tag,
 			    AD_COL_DATE, cvs_date,
@@ -869,58 +892,6 @@ apotheke_directory_get_ignore_pattern_list (ApothekeDirectory *dir)
 
 
 	return pattern_list;
-}
-
-static void
-get_status_text (ApothekeFileStatus status, gboolean is_directory, gchar **status_str)
-{
-	*status_str = "";
-
-	if (is_directory) {
-		if (status == FILE_STATUS_NOT_IN_CVS) {
-			*status_str = _("Not in CVS");
-		}
-		else {
-			*status_str = _("Directory");
-		}
-	}
-	else {
-		switch (status) {
-		case FILE_STATUS_NOT_IN_CVS:
-			*status_str = _("Not in CVS");
-			break;
-		case FILE_STATUS_IGNORE:
-			*status_str = _("Ignore");
-			break;
-		case FILE_STATUS_UP_TO_DATE:
-			*status_str = _("Up-To-Date");
-			break;
-		case FILE_STATUS_NEEDS_PATCH:
-			*status_str = _("Needs Patch");
-			break;
-		case FILE_STATUS_ADDED:
-			*status_str = _("Added");
-			break;
-		case FILE_STATUS_MODIFIED:
-			*status_str = _("Modified");
-			break;
-		case FILE_STATUS_REMOVED:
-			*status_str = _("Removed");
-			break;
-		case FILE_STATUS_NEEDS_CHECKOUT:
-			*status_str = _("Needs Checkout");
-			break;
-		case FILE_STATUS_NEEDS_MERGE:
-			*status_str = _("Needs Merge");
-			break;
-		case FILE_STATUS_MISSING:
-			*status_str = _("Missing");
-			break;
-		case FILE_STATUS_CONFLICT:
-			*status_str = _("Conflict");
-			break;
-		}
-	}
 }
 
 void

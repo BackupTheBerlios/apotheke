@@ -1,7 +1,17 @@
+2003-04-12  Jens Finke  <jens@triq.net>
+
+	* configure.in: Require libnautilus >= 2.2.1
+
+	* src/apotheke-client-cvs.c (apotheke_client_cvs_do): Added
+	linebreak after command end.
+
+	* src/apotheke-view.c (construct_ui): Use unicode copyright sign.
+	
 2003-02-10  Haavard Wigtil <havardw@stud.ntnu.no>
 
-       * src/apotheke-directory.c (apotheke_directory_get_ignore_pattern_list):
-         Return (empty) list if .cvsignore isn't found.
+	* src/apotheke-directory.c
+	(apotheke_directory_get_ignore_pattern_list): Return (empty) list
+	 if .cvsignore isn't found.
 
 2003-01-05  Jens Finke  <jens@triq.net>
 
